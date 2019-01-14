@@ -79,7 +79,7 @@ public:
         forwarding = 0;
         help_hemisphere = -1;
 
-        SetApplet(0, get_applet_index_by_id(1)); // Metronome
+        SetApplet(0, get_applet_index_by_id(3)); // Grids
         SetApplet(1, get_applet_index_by_id(2)); // ProbabilisticGate
 
         // Set up category filtering
