@@ -32,13 +32,52 @@ public:
       x_ = 23;
       y_ = 128;
       density_ = 128;
-      which_ = 0;
+      mode_ = 0;
       cursor_ = 0;
       channel_.reset();
     }
 
+    void processStep()
+    {
+        const auto density =  constrain(density_ + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
+        const uint8_t threshold = ~density;
+
+        if (mode_ < 3) // Single
+        {
+          const auto level = channel_.level(mode_, x_, y_);
+          if (level > threshold)
+          {
+            ClockOut(0); // trigger
+            Out(1, Proportion(level - threshold, 256 - threshold, HEMISPHERE_MAX_CV));
+          }          
+        }
+        else // dual
+        {
+          uint8_t left = mode_ < 5 ? 0 : 1; // B/B/S
+          uint8_t right = mode_ < 4 ? 1 : 2; // S/H/H
+          
+          uint8_t levels[2] =
+            {
+              channel_.level(left, x_, y_),
+              channel_.level(right, x_, y_)
+            };
+
+          if (density == 255) // Output levels
+          {
+            Out(0, Proportion(levels[0], 256, HEMISPHERE_MAX_CV));
+            Out(1, Proportion(levels[1], 256, HEMISPHERE_MAX_CV));
+          }
+          else // Output trigger
+          {
+            if (levels[0] > threshold) ClockOut(0);
+            if (levels[1] > threshold) ClockOut(1);
+          }
+        }      
+    }
+  
 	/* Run during the interrupt service routine, 16667 times per second */
     void Controller() {
+
       if (Clock(1))
       {
         channel_.reset();
@@ -46,14 +85,8 @@ public:
 
       if (Clock(0))
       {
-        const auto density =  constrain(density_ + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
-        const auto level = channel_.tick(which_, x_, y_);
-        const uint8_t threshold = ~density;
-        if (level > threshold)
-        {
-          ClockOut(0); // trigger
-          Out(1, Proportion(level - threshold, 256 - threshold, HEMISPHERE_MAX_CV));
-        }
+        processStep();
+        channel_.advance();
       }
 
     }
@@ -76,14 +109,22 @@ public:
       // Add other view code as private methods
       gfxPrint(21 + pad(100, density_), 15, density_);
       if (CursorBlink() && cursor_ == 0) gfxLine(21 + 20, 15, 21 + 20, 21);
-      static const char *modes[] = { "BD", "SD", "HH" };
-      gfxPrint(21 + 6, 25, modes[which_]);
+
+      static const char *modes[] = { "BD", "SD", "HH", "BS", "BH", "SH" };
+      gfxPrint(21 + 6, 25, modes[mode_]);
       if (CursorBlink() && cursor_ == 1) gfxLine(21 + 20, 25, 21 + 20, 31);
+
+      gfxPrint(21 + pad(100, x_), 35, x_);
+      if (CursorBlink() && cursor_ == 2) gfxLine(21 + 20, 35, 21 + 20, 41);
+
+      gfxPrint(21 + pad(100, y_), 45, y_);
+      if (CursorBlink() && cursor_ == 3) gfxLine(21 + 20, 45, 21 + 20, 51);
+
     }
 
 	/* Called when the encoder button for this hemisphere is pressed */
     void OnButtonPress() {
-      cursor_ = (cursor_ + 1) % 2;
+      cursor_ = (cursor_ + 1) % 4;
     }
 
 	/* Called when the encoder for this hemisphere is rotated
@@ -92,7 +133,9 @@ public:
 	 */
     void OnEncoderMove(int direction) {
       if (cursor_ == 0) density_ = constrain(density_ + direction, 0, 255);
-      if (cursor_ == 1) which_ = (which_ + direction + 3) % 3;
+      if (cursor_ == 1) mode_ = (mode_ + direction + 6) % 6;
+      if (cursor_ == 2) x_ = constrain(x_ + direction, 0, 255);
+      if (cursor_ == 3) y_ = constrain(y_ + direction, 0, 255);
     }
 
     /* Each applet may save up to 32 bits of data. When data is requested from
@@ -131,7 +174,7 @@ private:
     uint8_t x_;
     uint8_t y_;
     uint8_t density_;
-    int8_t which_;
+    int8_t mode_;
 
     uint8_t cursor_;
     grids::Channel channel_;

@@ -401,13 +401,16 @@ namespace grids
     step_ = 0;
   }
 
-  uint8_t Channel::tick(uint8_t part, uint16_t x, uint16_t y)
+  void Channel::advance()
+  {
+    step_ = (step_ + 1) % kStepsPerPattern;
+  }
+
+  uint8_t Channel::level(uint8_t part, uint16_t x, uint16_t y)
   {
     uint16_t xmap = x % 256;
     uint16_t ymap = y % 256;
     uint8_t level = ReadDrumMap(step_, part, xmap, ymap);
-    step_++;
-    if (step_ >= kStepsPerPattern) step_ -= kStepsPerPattern;
     return level;
   }
 }
