@@ -2,3 +2,5 @@
 #include "nostromo/midi.h"
 #include "nostromo/math.h"
 #include "nostromo/fixed.h"
+
+#define K(a) true

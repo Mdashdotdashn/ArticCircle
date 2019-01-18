@@ -24,129 +24,6 @@
 #include "braids_quantizer_scales.h"
 #include "OC_scales.h"
 
-  
-template <typename T>
-class ExponentialSegment
-{
-public:
-
-  ExponentialSegment();
-  ~ExponentialSegment();
-
-  void Setup(
-             const T& from,
-             const T& to,
-             const uint32_t timeInTriggerStep);
-
-  void UpdateSpeed(const uint32_t timeInTriggerStep);
-
-  T Tick();
-  bool EndOfSegment();
-
-  T Value()
-  {
-    return current_;
-  }
-
-private:
-
-  void updateCurrent();
-
-private:
-  const static float kNoiseFloor;
-  T from_;
-  T to_;
-
-  bool endOfSegment_;
-
-  T speed_;
-  T ramp_;
-
-  T current_;
-
-  static const T ONE_;
-  static const T ZERO_;
-};
-
-template <typename T> const T ExponentialSegment<T>::ZERO_ = T(0);
-template <typename T> const T ExponentialSegment<T>::ONE_ = T(1);
-
-template <typename T>
-const float ExponentialSegment<T>::kNoiseFloor = 1e-4f; // -80db
-
-template <typename T>
-ExponentialSegment<T>::ExponentialSegment()
-:endOfSegment_(true)
-,speed_(ZERO_)
-,ramp_(ZERO_)
-{
-}
-
-
-//-----------------------------------------------------------
-
-template <typename T>
-ExponentialSegment<T>::~ExponentialSegment()
-{
-}
-
-//-----------------------------------------------------------
-
-template <typename T>
-void ExponentialSegment<T>::Setup(
-                             const T &from,
-                             const T &to,
-                             const uint32_t timeInTriggerStep)
-{
-  from_ = from;
-  to_ = to;
-  
-  endOfSegment_ = (timeInTriggerStep == 0)  ;
-  
-  if (!endOfSegment_)
-  {
-    speed_ = T(powf(kNoiseFloor, 1.f/float(timeInTriggerStep)));
-  }
-  ramp_ = endOfSegment_ ? ZERO_ : ONE_;
-  updateCurrent();
-}
-
-
-//-----------------------------------------------------------
-
-template <typename T>
-void ExponentialSegment<T>::UpdateSpeed(const uint32_t timeInTriggerStep)
-{
-  speed_ = T(powf(kNoiseFloor, 1.f/float(timeInTriggerStep)));  
-}
-
-
-//-----------------------------------------------------------
-
-template <typename T>
-T ExponentialSegment<T>::Tick()
-{  
-  ramp_ *= speed_;
-  endOfSegment_ = (ramp_ <= T(kNoiseFloor));
-  updateCurrent();
-  return current_;
-}
-
-
-template <typename T>
-void ExponentialSegment<T>::updateCurrent()
-{
-  current_ = lerp(from_, to_, ramp_);
-}
-
-//-----------------------------------------------------------
-
-template <typename T>
-bool ExponentialSegment<T>::EndOfSegment()
-{
-  return endOfSegment_ ;
-}
-
 class Oscillator : public HemisphereApplet {
 public:
 
@@ -165,14 +42,14 @@ public:
       quantizer_.Init();
       quantizer_.Configure(OC::Scales::GetScale(scale_), 0xffff);
       lastNote_ = 0;
-      eg_.Setup(sample_t(1),sample_t(0), 16667);
+      eg_.init(sample_t(0));
     }
 
 	/* Run during the interrupt service routine, 16667 times per second */
     void Controller() {
-      if (Clock(0))
+      if (Clock(0, K(PhysicalOnly)))
       {
-        eg_.Setup(sample_t(1),sample_t(0), 16667);
+        eg_.ramp(sample_t(1),sample_t(0), 16667);
       }
 
       if (Changed(0))
@@ -184,7 +61,7 @@ public:
         phaseIncrease_ = sample_t(frequency / 16667.f);        
       }
       phase_ = sample_t::frac(phase_ + phaseIncrease_);
-      Out(0, float(Sine(phase_) * (sample_t(1) - eg_.Tick())) * HEMISPHERE_3V_CV);
+      Out(0, float(Sine(phase_) * eg_.tick()) * HEMISPHERE_3V_CV);
     }
 
 	/* Draw the screen */
