@@ -11,8 +11,6 @@
 #define FP_MAX_VAL INT_MAX
 #define FP_MIN_VAL INT_MIN
 
-class sample_t;
-
 //------------------------------
 
 // C is the storage container (int32_t for a 32bit for example)
@@ -21,8 +19,6 @@ template <typename C,uint8_t F>
 class FixedFP {
 
   template<typename C2, uint8_t F2> friend class FixedFP;
-
-  friend class sample_t;
 
 public:
 
@@ -298,3 +294,5 @@ public:
 		typedef uint64_t type ;
 	};
 } ;
+
+typedef FixedFP<int32_t, 27> sample_t;

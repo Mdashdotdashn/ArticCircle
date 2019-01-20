@@ -27,7 +27,7 @@
 class Oscillator : public HemisphereApplet {
 public:
 
-    using sample_t = FixedFP<int32_t, 27>;
+    constexpr static float kSampleRate = float(16667);
 
     const char* applet_name() { // Maximum 10 characters
         return "Oscillator";
@@ -37,7 +37,9 @@ public:
     void Start() {
       scale_ = 6; // Major
       root_ = 0;
-      phaseIncrease_ = sample_t(80.f / 16667.f);
+      decay_ = 1; // 100 msecs
+      decayInSamples_ = kSampleRate/10.f;
+      phaseIncrease_ = sample_t(80.f / kSampleRate);
       phase_ = sample_t(0);
       quantizer_.Init();
       quantizer_.Configure(OC::Scales::GetScale(scale_), 0xffff);
@@ -49,7 +51,7 @@ public:
     void Controller() {
       if (Clock(0, K(PhysicalOnly)))
       {
-        eg_.ramp(sample_t(1),sample_t(0), 16667);
+        eg_.ramp(sample_t(1),sample_t(0), decayInSamples_);
       }
 
       if (Changed(0))
@@ -58,7 +60,7 @@ public:
         const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
         const uint8_t midiNote = MIDIQuantizer::NoteNumber(quantized) -24;
         const float frequency = midiNoteToFrequency(midiNote);
-        phaseIncrease_ = sample_t(frequency / 16667.f);        
+        phaseIncrease_ = sample_t(frequency / kSampleRate);        
       }
       phase_ = sample_t::frac(phase_ + phaseIncrease_);
       Out(0, float(Sine(phase_) * eg_.tick()) * HEMISPHERE_3V_CV);
@@ -66,9 +68,24 @@ public:
 
 	/* Draw the screen */
     void View() {
-        gfxHeader(applet_name());
-        gfxSkyline();
+      gfxHeader(applet_name());
+      ForEachChannel(ch)
+      {
+        if (Gate(ch))
+        {
+          const auto offset = 5 * ch;
+          gfxRect(58, offset, 4, 4);
+        }
+      }
+  
+      gfxSkyline();
         // Add other view code as private methods
+      gfxPrint(21, 15, decayInSamples_);  
+
+      if (eg_.eos())
+      {
+        gfxRect(21,25,6,6);
+      }
     }
 
 	/* Called when the encoder button for this hemisphere is pressed */
@@ -80,6 +97,8 @@ public:
 	 * direction -1 is counterclockwise
 	 */
     void OnEncoderMove(int direction) {
+      decay_ = constrain(decay_ + direction, 1, 100);
+      decayInSamples_ = kSampleRate / 10.f * decay_;
     }
 
     /* Each applet may save up to 32 bits of data. When data is requested from
@@ -122,6 +141,9 @@ private:
   int32_t lastNote_;
   int scale_;
   int root_;
+
+  uint8_t decay_;
+  uint32_t decayInSamples_;
 };
 
 

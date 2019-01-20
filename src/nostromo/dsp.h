@@ -69,6 +69,11 @@ public:
     return current_;
   }
 
+  bool eos()
+  {
+    return eos_;
+  }
+
 private:
   constexpr static float kNoiseFloor = 1e-4f;
   T from_;
