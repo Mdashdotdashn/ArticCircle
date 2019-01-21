@@ -23,66 +23,92 @@ T Sine(const T& in)
   return FastSine((in - T(0.5)) * T(2));
 }
 
+//------------------------------------------------------------------------------
+
+static float calcSlewCoeff(uint32_t sampleCount, float noiseFloor = 1e-4f)
+{
+  return exp(log(noiseFloor)/float(sampleCount));
+}
+
+//------------------------------------------------------------------------------
+
 template <typename T>
-class ExponentialSegment
+class Slew
 {
 public:
 
   void init(const T& value)
   {
-    from_ = value;
-    to_ = value;
-    ramp_ = T(0);
-    eos_ = true;
-    speed_ = 0;
-
-    current_ = T(0);
+    value_ = value;
   }
 
-  void ramp(const T& from, const T& to, const uint32_t timeInTriggerStep)
+  void setCoefficients(const T&up, const T& down)
   {
-    from_= from;
-    to_ = to;
+    up_ = up;
+    down_ = down;
+  }
 
-    eos_ = (timeInTriggerStep == 0)  ;
+  T tick(const T& target)
+  {
+      const auto coeff = target > value_ ? up_ : down_;
+      value_ = target + (value_ - target) * coeff;
+      return value_;
+  }
 
-    if (!eos_)
+  T value() const
+  {
+    return value_;
+  }
+
+private:
+  T value_;
+  T up_;
+  T down_;
+};
+
+//------------------------------------------------------------------------------
+
+template <typename T>
+class ADEnvelope
+{
+public:
+  constexpr static float kNoiseFloor = 1e-4;
+
+  void init()
+  {
+    slew_.init(T(0));
+    target_ = T(0);
+  }
+
+  void setCoefficients(const T& attack, const T& decay)
+  {
+    slew_.setCoefficients(attack, decay);
+  }
+
+  T tick(bool gate)
+  {
+    if (target_ == T(1))
     {
-      speed_ = T(powf(kNoiseFloor, 1.f/float(timeInTriggerStep)));
+      if (target_ - slew_.value() < T(kNoiseFloor))
+      {
+        target_ = T(0);
+      }
     }
 
-    ramp_ = eos_ ? T(0) : T(1); // Ramp goes from 1.0 -> 0 (kNoiseFloor)
-    current_ = eos_ ? to_ : from_;
-  }
+    if (gate)
+    {
+      target_ = T(1);
+    }
 
-
-  T tick()
-  {
-    ramp_ *= speed_;
-    current_ = lerp(to_, from_, ramp_);
-    eos_ = (ramp_ <= T(kNoiseFloor));
-    return current_;
+    return slew_.tick(target_);
   }
 
   T value()
   {
-    return current_;
-  }
-
-  bool eos()
-  {
-    return eos_;
+    return slew_.value();
   }
 
 private:
-  constexpr static float kNoiseFloor = 1e-4f;
-  T from_;
-  T to_;
-
-  bool eos_;
-
-  T speed_;
-  T ramp_;
-
-  T current_;
+  Slew<T> slew_;
+  T target_;
 };

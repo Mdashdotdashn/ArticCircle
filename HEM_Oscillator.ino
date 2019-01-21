@@ -38,21 +38,17 @@ public:
       scale_ = 6; // Major
       root_ = 0;
       decay_ = 1; // 100 msecs
-      decayInSamples_ = kSampleRate/10.f;
-      phaseIncrease_ = sample_t(80.f / kSampleRate);
+      phaseIncrease_ = sample_t(440.f / kSampleRate);
       phase_ = sample_t(0);
       quantizer_.Init();
       quantizer_.Configure(OC::Scales::GetScale(scale_), 0xffff);
       lastNote_ = 0;
-      eg_.init(sample_t(0));
+      eg_.init();
+      eg_.setCoefficients(calcSlewCoeff(16), calcSlewCoeff(kSampleRate / 10.f * decay_));
     }
 
 	/* Run during the interrupt service routine, 16667 times per second */
     void Controller() {
-      if (Clock(0, K(PhysicalOnly)))
-      {
-        eg_.ramp(sample_t(1),sample_t(0), decayInSamples_);
-      }
 
       if (Changed(0))
       {
@@ -63,7 +59,7 @@ public:
         phaseIncrease_ = sample_t(frequency / kSampleRate);        
       }
       phase_ = sample_t::frac(phase_ + phaseIncrease_);
-      Out(0, float(Sine(phase_) * eg_.tick()) * HEMISPHERE_3V_CV);
+      Out(0, float(Sine(phase_) * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
     }
 
 	/* Draw the screen */
@@ -80,9 +76,9 @@ public:
   
       gfxSkyline();
         // Add other view code as private methods
-      gfxPrint(21, 15, decayInSamples_);  
+      gfxPrint(21, 15, 10.f * decay_);  
 
-      if (eg_.eos())
+      if (eg_.value() > sample_t(1e-4))
       {
         gfxRect(21,25,6,6);
       }
@@ -98,7 +94,7 @@ public:
 	 */
     void OnEncoderMove(int direction) {
       decay_ = constrain(decay_ + direction, 1, 100);
-      decayInSamples_ = kSampleRate / 10.f * decay_;
+      eg_.setCoefficients(calcSlewCoeff(16), calcSlewCoeff(kSampleRate / 10.f * decay_));
     }
 
     /* Each applet may save up to 32 bits of data. When data is requested from
@@ -134,16 +130,14 @@ protected:
     }
 
 private:
-  ExponentialSegment<sample_t> eg_;
+  ADEnvelope<sample_t> eg_;
   sample_t phaseIncrease_;
   sample_t phase_;
   braids::Quantizer quantizer_;
   int32_t lastNote_;
   int scale_;
   int root_;
-
   uint8_t decay_;
-  uint32_t decayInSamples_;
 };
 
 
