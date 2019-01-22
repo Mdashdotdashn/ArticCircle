@@ -25,11 +25,21 @@ T Sine(const T& in)
 
 //------------------------------------------------------------------------------
 
-static float calcSlewCoeff(uint32_t sampleCount, float noiseFloor = 1e-4f)
+static inline float calcSlewCoeff(uint32_t sampleCount, float noiseFloor = 1e-4f)
 {
   return exp(log(noiseFloor)/float(sampleCount));
 }
 
+static inline float onePoleCoeff(const float samplerate,
+  const float timeConstantInSeconds)
+{
+  const float timeConstantInSamples = timeConstantInSeconds * samplerate;
+  if (timeConstantInSamples > 0.f)
+  {
+    return 1.f - expf(-1.f / timeConstantInSamples);
+  }
+  return 1.f;
+}
 //------------------------------------------------------------------------------
 
 template <typename T>

@@ -40,6 +40,23 @@ public:
     value_ = i << shift_;
   }
 
+  // Factory
+
+  static inline FixedFP fromValue(const C& value)
+  {
+    FixedFP fp;
+    fp.value_ = value;
+    return fp;
+  }
+
+  static inline FixedFP fromRatio(const C& numerator, const C& denominator)
+  {
+    FixedFP n,d;
+    n.value_ = numerator;
+    d.value_ = denominator;
+    return n/d;
+  }
+
   // Min - Max
 
   static FixedFP SMax()
@@ -294,5 +311,23 @@ public:
 		typedef uint64_t type ;
 	};
 } ;
+
+template <typename C,uint8_t F>
+static FixedFP<C,F> abs(const FixedFP<C,F> &fp)
+{
+  return (fp < FixedFP<C,F>(0)) ? -fp : fp;
+}
+
+template <typename C,uint8_t F>
+static FixedFP<C,F> max(const FixedFP<C,F> &fp1, const FixedFP<C,F> &fp2)
+{
+  return (fp1 < fp2) ? fp2 : fp1;
+}
+
+template <typename C,uint8_t F>
+static FixedFP<C,F> min(const FixedFP<C,F> &fp1, const FixedFP<C,F> &fp2)
+{
+  return (fp1 < fp2) ? fp1 : fp2;
+}
 
 typedef FixedFP<int32_t, 27> sample_t;

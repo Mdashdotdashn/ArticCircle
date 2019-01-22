@@ -14,7 +14,7 @@
 #define HEMISPHERE_APPLETS { \
     DECLARE_APPLET( 4, 0x08, Oscillator), \
     DECLARE_APPLET( 3, 0x02, GridsChannel), \
-    DECLARE_APPLET( 1, 0x04, Metronome), \
+    DECLARE_APPLET( 1, 0x04, TransientDetector), \
     DECLARE_APPLET( 2, 0x40, ProbabilisticGate), \
 }
 /*    DECLARE_APPLET(127, 0x80, DIAGNOSTIC), \ */
