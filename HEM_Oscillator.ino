@@ -37,7 +37,7 @@ public:
     void Start() {
       scale_ = 6; // Major
       root_ = 0;
-      decay_ = 1; // 100 msecs
+      decay_ = 22; // 100 msecs
       phaseIncrease_ = sample_t(440.f / kSampleRate);
       phase_ = sample_t(0);
       quantizer_.Init();
@@ -54,8 +54,8 @@ public:
       {
         const int32_t pitch = In(0);
         const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
-        const uint8_t midiNote = MIDIQuantizer::NoteNumber(quantized) -24;
-        const float frequency = midiNoteToFrequency(midiNote);
+        lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24;
+        const float frequency = midiNoteToFrequency(lastNote_);
         phaseIncrease_ = sample_t(frequency / kSampleRate);        
       }
       phase_ = sample_t::frac(phase_ + phaseIncrease_);
@@ -80,7 +80,7 @@ public:
 
       if (eg_.value() > sample_t(1e-4))
       {
-        gfxRect(21,25,6,6);
+        gfxPrint(38, 50, midi_note_numbers[lastNote_]);
       }
     }
 
