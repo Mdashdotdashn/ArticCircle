@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <assert.h>
 #include <ostream>
+#include <algorithm>
 #include <stdint.h>
 
 //------------------------------

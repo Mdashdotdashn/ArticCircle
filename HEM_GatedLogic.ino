@@ -18,66 +18,102 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-class ProbabilisticGate : public HemisphereApplet {
+#include "src/nostromo.h"
+
+class ClockedLogic : public HemisphereApplet {
 public:
 
+  enum class Operant_t
+  {
+    source,
+    invert,
+    a,
+    o,
+    x,
+    COUNT
+  };
+
+  enum class Mode_t
+  {
+    triggered,
+    clocked,
+    COUNT
+  };
+
+  struct Model
+  {
+    struct OperantBase : EnumProperty<Operant_t>
+    {
+      OperantBase()
+      {
+        setValue(Operant_t::source);
+
+        setEnumStrings({
+          {Operant_t::source, "Src"},
+          {Operant_t::invert, "Not"},
+          {Operant_t::a, "And"},
+          {Operant_t::o, "Or"},
+          {Operant_t::x, "Xor"}
+        });          
+      }
+    };
+    
+    struct OperantL : OperantBase
+    {
+    };
+
+    struct OperantR : OperantBase
+    {
+    };
+
+    struct Mode : EnumProperty<Mode_t>
+    {
+      Mode()
+      {
+        setValue(Mode_t::triggered);
+        
+        setEnumStrings({
+          {Mode_t::triggered, "Trg"},
+          {Mode_t::clocked, "Clk"},
+        });          
+      }
+    };
+
+    using Properties = PropertySet<OperantL, OperantR, Mode>;
+  };
+  
     const char* applet_name() { // Maximum 10 characters
-        return "Funkitus";
+        return "ClockedLogic";
     }
 
 	/* Run when the Applet is selected */
     void Start()
     {
-      probability_ = 50;
-      state_[0] = state_[1] = false;
-      lastGate_[0] = lastGate_[1] = false;
+      cursor_ = 0;
+      operant_[0] = operant_[1] = Operant_t::source;
+      mode_ = { Mode_t::triggered };
     }
 
 	/* Run during the interrupt service routine, 16667 times per second */
     void Controller() {
-
-      const auto processFlank = [&](int ch, bool up) -> void
-      {
-        if (up)
-        {
-          const auto p = (ch == 0) ? probability_ : 100 - probability_;
-          if (random(1,100) <= p)
-          {
-            state_[ch] = true;
-          }
-        }
-        else
-        {
-          state_[ch] = false;
-        }
-      };
-
-      ForEachChannel(ch)
-      {
-        bool gate = Gate(ch);
-        if (gate != lastGate_[ch])
-        {
-          processFlank(ch, gate);
-          lastGate_[ch] = gate;
-        }
-      }
-
-      GateOut(0, state_[0] | state_[1]);
-      GateOut(1, state_[0] ^ state_[1]);
-
     }
 
 	/* Draw the screen */
     void View() {
         gfxHeader(applet_name());
         gfxSkyline();
-        // Add other view code as private methods
-        gfxPrint(1, 15, "p=");
-        gfxPrint(15 + pad(100, probability_), 15, probability_);
+
+        const char* operantString[int(Operant_t::COUNT)] = { "Src", "Inv", "And" , "Or", "Xor" };
+        const char* modeString[int(Mode_t::COUNT)] = { "Trg", "Clk"};
+
+        gfxPrint(1, 15, operantString[int(operant_[0])]);
+        gfxPrint(21, 15, modeString[int(mode_)]);
+        gfxPrint(41, 15, operantString[int(operant_[1])]);
     }
 
 	/* Called when the encoder button for this hemisphere is pressed */
     void OnButtonPress() {
+      propertyManager_.next();
     }
 
 	/* Called when the encoder for this hemisphere is rotated
@@ -85,7 +121,7 @@ public:
 	 * direction -1 is counterclockwise
 	 */
     void OnEncoderMove(int direction) {
-      probability_ = constrain(probability_ += direction, 0, 100);
+      propertyManager_.updateCurrent(direction);
     }
 
     /* Each applet may save up to 32 bits of data. When data is requested from
@@ -93,9 +129,10 @@ public:
      * returns it.
      */
     uint32_t OnDataRequest() {
-      uint32_t data = 0;
-      Pack(data, PackLocation {0,7}, probability_);
-      return data;
+        uint32_t data = 0;
+        // example: pack property_name at bit 0, with size of 8 bits
+        // Pack(data, PackLocation {0,8}, property_name);
+        return data;
     }
 
     /* When the applet is restored (from power-down state, etc.), the manager may
@@ -104,11 +141,11 @@ public:
      * properties.
      */
     void OnDataReceive(uint32_t data) {
-      probability_ = Unpack(data, PackLocation {0,7});
+        // example: unpack value at bit 0 with size of 8 bits to property_name
+        // property_name = Unpack(data, PackLocation {0,8});
     }
 
 protected:
-
     /* Set help text. Each help section can have up to 18 characters. Be concise! */
     void SetHelp() {
         //                               "------------------" <-- Size Guide
@@ -120,27 +157,29 @@ protected:
     }
 
 private:
-  int probability_;
-  bool state_[2];
-  bool lastGate_[2];
+  PropertyManager<Model> propertyManager_;
+  Operant_t operant_[2];
+  Mode_t mode_;
+
+  int cursor_;
 };
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //// Hemisphere Applet Functions
 ///
-///  Once you run the find-and-replace to make these refer to ProbabilisticGate,
+///  Once you run the find-and-replace to make these refer to ClockedLogic,
 ///  it's usually not necessary to do anything with these functions. You
 ///  should prefer to handle things in the HemisphereApplet child class
 ///  above.
 ////////////////////////////////////////////////////////////////////////////////
-ProbabilisticGate ProbabilisticGate_instance[2];
+ClockedLogic ClockedLogic_instance[2];
 
-void ProbabilisticGate_Start(bool hemisphere) {ProbabilisticGate_instance[hemisphere].BaseStart(hemisphere);}
-void ProbabilisticGate_Controller(bool hemisphere, bool forwarding) {ProbabilisticGate_instance[hemisphere].BaseController(forwarding);}
-void ProbabilisticGate_View(bool hemisphere) {ProbabilisticGate_instance[hemisphere].BaseView();}
-void ProbabilisticGate_OnButtonPress(bool hemisphere) {ProbabilisticGate_instance[hemisphere].OnButtonPress();}
-void ProbabilisticGate_OnEncoderMove(bool hemisphere, int direction) {ProbabilisticGate_instance[hemisphere].OnEncoderMove(direction);}
-void ProbabilisticGate_ToggleHelpScreen(bool hemisphere) {ProbabilisticGate_instance[hemisphere].HelpScreen();}
-uint32_t ProbabilisticGate_OnDataRequest(bool hemisphere) {return ProbabilisticGate_instance[hemisphere].OnDataRequest();}
-void ProbabilisticGate_OnDataReceive(bool hemisphere, uint32_t data) {ProbabilisticGate_instance[hemisphere].OnDataReceive(data);}
+void ClockedLogic_Start(bool hemisphere) {ClockedLogic_instance[hemisphere].BaseStart(hemisphere);}
+void ClockedLogic_Controller(bool hemisphere, bool forwarding) {ClockedLogic_instance[hemisphere].BaseController(forwarding);}
+void ClockedLogic_View(bool hemisphere) {ClockedLogic_instance[hemisphere].BaseView();}
+void ClockedLogic_OnButtonPress(bool hemisphere) {ClockedLogic_instance[hemisphere].OnButtonPress();}
+void ClockedLogic_OnEncoderMove(bool hemisphere, int direction) {ClockedLogic_instance[hemisphere].OnEncoderMove(direction);}
+void ClockedLogic_ToggleHelpScreen(bool hemisphere) {ClockedLogic_instance[hemisphere].HelpScreen();}
+uint32_t ClockedLogic_OnDataRequest(bool hemisphere) {return ClockedLogic_instance[hemisphere].OnDataRequest();}
+void ClockedLogic_OnDataReceive(bool hemisphere, uint32_t data) {ClockedLogic_instance[hemisphere].OnDataReceive(data);}
