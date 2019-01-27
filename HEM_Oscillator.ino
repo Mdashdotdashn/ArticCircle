@@ -24,138 +24,114 @@
 #include "braids_quantizer_scales.h"
 #include "OC_scales.h"
 
-class Oscillator : public HemisphereApplet {
-public:
+//------------------------------------------------------------------------------
 
-    constexpr static float kSampleRate = float(16667);
-
-    const char* applet_name() { // Maximum 10 characters
-        return "Oscillator";
-    }
-
-	/* Run when the Applet is selected */
-    void Start() {
-      scale_ = 6; // Major
-      root_ = 0;
-      decay_ = 22; // 100 msecs
-      phaseIncrease_ = sample_t(440.f / kSampleRate);
-      phase_ = sample_t(0);
-      quantizer_.Init();
-      quantizer_.Configure(OC::Scales::GetScale(scale_), 0xffff);
-      lastNote_ = 0;
-      eg_.init();
-      eg_.setCoefficients(calcSlewCoeff(16), calcSlewCoeff(kSampleRate / 10.f * decay_));
-    }
-
-	/* Run during the interrupt service routine, 16667 times per second */
-    void Controller() {
-
-      if (Changed(0))
+namespace NOscillator
+{
+  struct Model
+  {
+    struct Decay: Property<float>
+    {
+      Decay()
       {
-        const int32_t pitch = In(0);
-        const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
-        lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24;
-        const float frequency = midiNoteToFrequency(lastNote_);
-        phaseIncrease_ = sample_t(frequency / kSampleRate);        
+        setValue(0.22f);
+        setRange(0.01f, 5.f);
       }
-      phase_ = sample_t::frac(phase_ + phaseIncrease_);
-      Out(0, float(Sine(phase_) * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
-    }
+    };
 
-	/* Draw the screen */
-    void View() {
-      gfxHeader(applet_name());
-      ForEachChannel(ch)
+    using RootNote = RootNoteProperty;
+    using Scale = ScaleProperty;
+
+    using Properties = PropertySet<Decay, RootNote, Scale>;
+  };
+
+  class Applet : public ArticCircleApplet<Model> {
+  public:
+
+      Applet()
       {
-        if (Gate(ch))
+        setName("Lil.Osc");
+
+        root_ = 0;
+        phaseIncrease_ = sample_t(440.f / kSampleRate);
+        phase_ = sample_t(0);
+        quantizer_.Init();
+        lastNote_ = 0;
+        forcePitchEvaluation_ = false;
+        eg_.init();
+
+        setCallback<Model::Decay>([this](const auto& decay){
+          eg_.setCoefficients(calcSlewCoeff(16), calcSlewCoeff(kSampleRate * decay));
+          this->forcePitchEvaluation_ = true;
+        });
+
+        setCallback<Model::Scale>([this](const auto& scale){
+          quantizer_.Configure(OC::Scales::GetScale(scale), 0xffff);
+          this->forcePitchEvaluation_ = true;
+        });
+
+        bind<Model::RootNote>(root_);
+      }
+
+      std::pair<int,int> tick(const std::pair<bool, bool>& gateIn, const std::pair<int,int>& cvIn) final
+      {
+//        if (Changed(0) || forcePitchEvaluation_)
+//        {
+          const int32_t pitch = In(0);
+          const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
+          lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24;
+          const float frequency = midiNoteToFrequency(lastNote_);
+          phaseIncrease_ = sample_t(frequency / kSampleRate);
+          forcePitchEvaluation_ = false;
+//        }
+        phase_ = sample_t::frac(phase_ + phaseIncrease_);
+        return { float(Sine(phase_) * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV , 0};
+      }
+
+  	/* Draw the screen */
+      void drawApplet() final
+      {
+        gfxSkyline();
+          // Add other view code as private methods
+      //  gfxPrint(21, 15, 10.f * decay_);
+        ArticCircleApplet<Model>::drawApplet();
+
+        if (eg_.value() > sample_t(1e-4))
         {
-          const auto offset = 5 * ch;
-          gfxRect(58, offset, 4, 4);
+          gfxPrint(38, 50, midi_note_numbers[lastNote_]);
         }
       }
-  
-      gfxSkyline();
-        // Add other view code as private methods
-      gfxPrint(21, 15, 10.f * decay_);  
 
-      if (eg_.value() > sample_t(1e-4))
-      {
-        gfxPrint(38, 50, midi_note_numbers[lastNote_]);
-      }
-    }
+  protected:
+      // /* Set help text. Each help section can have up to 18 characters. Be concise! */
+      // void SetHelp() {
+      //     //                               "------------------" <-- Size Guide
+      //     help[HEMISPHERE_HELP_DIGITALS] = "Digital in help";
+      //     help[HEMISPHERE_HELP_CVS]      = "CV in help";
+      //     help[HEMISPHERE_HELP_OUTS]     = "Out help";
+      //     help[HEMISPHERE_HELP_ENCODER]  = "123456789012345678";
+      //     //                               "------------------" <-- Size Guide
+      // }
 
-	/* Called when the encoder button for this hemisphere is pressed */
-    void OnButtonPress() {
-    }
+  private:
+    ADEnvelope<sample_t> eg_;
+    sample_t phaseIncrease_;
+    sample_t phase_;
+    braids::Quantizer quantizer_;
+    int32_t lastNote_;
+    int root_;
+    bool forcePitchEvaluation_;
+  };
 
-	/* Called when the encoder for this hemisphere is rotated
-	 * direction 1 is clockwise
-	 * direction -1 is counterclockwise
-	 */
-    void OnEncoderMove(int direction) {
-      decay_ = constrain(decay_ + direction, 1, 100);
-      eg_.setCoefficients(calcSlewCoeff(16), calcSlewCoeff(kSampleRate / 10.f * decay_));
-    }
-
-    /* Each applet may save up to 32 bits of data. When data is requested from
-     * the manager, OnDataRequest() packs it up (see HemisphereApplet::Pack()) and
-     * returns it.
-     */
-    uint32_t OnDataRequest() {
-        uint32_t data = 0;
-        // example: pack property_name at bit 0, with size of 8 bits
-        // Pack(data, PackLocation {0,8}, property_name);
-        return data;
-    }
-
-    /* When the applet is restored (from power-down state, etc.), the manager may
-     * send data to the applet via OnDataReceive(). The applet should take the data
-     * and unpack it (see HemisphereApplet::Unpack()) into zero or more of the applet's
-     * properties.
-     */
-    void OnDataReceive(uint32_t data) {
-        // example: unpack value at bit 0 with size of 8 bits to property_name
-        // property_name = Unpack(data, PackLocation {0,8});
-    }
-
-protected:
-    /* Set help text. Each help section can have up to 18 characters. Be concise! */
-    void SetHelp() {
-        //                               "------------------" <-- Size Guide
-        help[HEMISPHERE_HELP_DIGITALS] = "Digital in help";
-        help[HEMISPHERE_HELP_CVS]      = "CV in help";
-        help[HEMISPHERE_HELP_OUTS]     = "Out help";
-        help[HEMISPHERE_HELP_ENCODER]  = "123456789012345678";
-        //                               "------------------" <-- Size Guide
-    }
-
-private:
-  ADEnvelope<sample_t> eg_;
-  sample_t phaseIncrease_;
-  sample_t phase_;
-  braids::Quantizer quantizer_;
-  int32_t lastNote_;
-  int scale_;
-  int root_;
-  uint8_t decay_;
-};
-
+  Applet instance_[2];
+} // NOscillator
 
 ////////////////////////////////////////////////////////////////////////////////
-//// Hemisphere Applet Functions
-///
-///  Once you run the find-and-replace to make these refer to Oscillator,
-///  it's usually not necessary to do anything with these functions. You
-///  should prefer to handle things in the HemisphereApplet child class
-///  above.
-////////////////////////////////////////////////////////////////////////////////
-Oscillator Oscillator_instance[2];
-
-void Oscillator_Start(bool hemisphere) {Oscillator_instance[hemisphere].BaseStart(hemisphere);}
-void Oscillator_Controller(bool hemisphere, bool forwarding) {Oscillator_instance[hemisphere].BaseController(forwarding);}
-void Oscillator_View(bool hemisphere) {Oscillator_instance[hemisphere].BaseView();}
-void Oscillator_OnButtonPress(bool hemisphere) {Oscillator_instance[hemisphere].OnButtonPress();}
-void Oscillator_OnEncoderMove(bool hemisphere, int direction) {Oscillator_instance[hemisphere].OnEncoderMove(direction);}
-void Oscillator_ToggleHelpScreen(bool hemisphere) {Oscillator_instance[hemisphere].HelpScreen();}
-uint32_t Oscillator_OnDataRequest(bool hemisphere) {return Oscillator_instance[hemisphere].OnDataRequest();}
-void Oscillator_OnDataReceive(bool hemisphere, uint32_t data) {Oscillator_instance[hemisphere].OnDataReceive(data);}
+void Oscillator_Start(bool hemisphere) {NOscillator::instance_[hemisphere].BaseStart(hemisphere);}
+void Oscillator_Controller(bool hemisphere, bool forwarding) {NOscillator::instance_[hemisphere].BaseController(forwarding);}
+void Oscillator_View(bool hemisphere) {NOscillator::instance_[hemisphere].BaseView();}
+void Oscillator_OnButtonPress(bool hemisphere) {NOscillator::instance_[hemisphere].OnButtonPress();}
+void Oscillator_OnEncoderMove(bool hemisphere, int direction) {NOscillator::instance_[hemisphere].OnEncoderMove(direction);}
+void Oscillator_ToggleHelpScreen(bool hemisphere) {NOscillator::instance_[hemisphere].HelpScreen();}
+uint32_t Oscillator_OnDataRequest(bool hemisphere) {return NOscillator::instance_[hemisphere].OnDataRequest();}
+void Oscillator_OnDataReceive(bool hemisphere, uint32_t data) {NOscillator::instance_[hemisphere].OnDataReceive(data);}

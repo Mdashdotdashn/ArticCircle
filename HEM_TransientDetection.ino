@@ -20,117 +20,77 @@
 
 #include "src/nostromo.h"
 
-class TransientDetector : public HemisphereApplet {
-public:
-    constexpr static float kSampleRate = float(16667);
-
-    const char* applet_name() { // Maximum 10 characters
-        return "Transient";
-    }
-
-	/* Run when the Applet is selected */
-    void Start() {
-      state_ = 0;
-      peak_ =0;
-      release_ = 40;
-      updateReleaseCoefficient();
-    }
-
-	/* Run during the interrupt service routine, 16667 times per second */
-    void Controller() {
-      static const sample_t kPeakFall = sample_t(1.f/kSampleRate/20.f);
-      static const sample_t kMinimumPeak = sample_t(0.2);
-      const auto input = sample_t::fromRatio(In(0), HEMISPHERE_3V_CV);
-      const auto rectified = abs(input);
-      peak_ = max(peak_, rectified);
-      peak_ = max(peak_ - kPeakFall, kMinimumPeak);
-      state_ = rectified > state_ ? rectified : state_ + (rectified - state_) * releaseCoeff_;
-      Out(0, float(state_ /peak_) * HEMISPHERE_3V_CV);
-      Out(1, float(peak_) * HEMISPHERE_3V_CV);
-    }
-
-	/* Draw the screen */
-    void View() {
-        gfxHeader(applet_name());
-        gfxSkyline();
-        // Add other view code as private methods
-        gfxPrint(21 + pad(100, release_), 15, release_);
-
-    }
-
-	/* Called when the encoder button for this hemisphere is pressed */
-    void OnButtonPress() {
-    }
-
-	/* Called when the encoder for this hemisphere is rotated
-	 * direction 1 is clockwise
-	 * direction -1 is counterclockwise
-	 */
-    void OnEncoderMove(int direction) {
-      release_ = clamp(release_ + direction, 20, 500);
-      updateReleaseCoefficient();
-    }
-
-    /* Each applet may save up to 32 bits of data. When data is requested from
-     * the manager, OnDataRequest() packs it up (see HemisphereApplet::Pack()) and
-     * returns it.
-     */
-    uint32_t OnDataRequest() {
-        uint32_t data = 0;
-        // example: pack property_name at bit 0, with size of 8 bits
-        // Pack(data, PackLocation {0,8}, property_name);
-        return data;
-    }
-
-    /* When the applet is restored (from power-down state, etc.), the manager may
-     * send data to the applet via OnDataReceive(). The applet should take the data
-     * and unpack it (see HemisphereApplet::Unpack()) into zero or more of the applet's
-     * properties.
-     */
-    void OnDataReceive(uint32_t data) {
-        // example: unpack value at bit 0 with size of 8 bits to property_name
-        // property_name = Unpack(data, PackLocation {0,8});
-    }
-
-protected:
-    /* Set help text. Each help section can have up to 18 characters. Be concise! */
-    void SetHelp() {
-        //                               "------------------" <-- Size Guide
-        help[HEMISPHERE_HELP_DIGITALS] = "Digital in help";
-        help[HEMISPHERE_HELP_CVS]      = "CV in help";
-        help[HEMISPHERE_HELP_OUTS]     = "Out help";
-        help[HEMISPHERE_HELP_ENCODER]  = "123456789012345678";
-        //                               "------------------" <-- Size Guide
-    }
-
-  void updateReleaseCoefficient()
+namespace NTransientDetector
+{
+  struct Model
   {
-    releaseCoeff_ = onePoleCoeff(kSampleRate, float(release_) / 100.f);
-  }
- 
-private:
-  sample_t peak_;
-  sample_t state_;
-  int release_;
-  sample_t releaseCoeff_; 
-};
+    struct Release : public Property<float>
+    {
+      Release()
+      {
+        setValue(1.f);
+        setRange(0.3f, 5.f);
+      }
+    };
 
+    struct Gain: public Property<float>
+    {
+      Gain()
+      {
+        setValue(2.f);
+        setRange(0.5f, 5.f);
+      };
+    };
+    using Properties = PropertySet<Release, Gain>;
+  };
 
-////////////////////////////////////////////////////////////////////////////////
-//// Hemisphere Applet Functions
-///
-///  Once you run the find-and-replace to make these refer to TransientDetector,
-///  it's usually not necessary to do anything with these functions. You
-///  should prefer to handle things in the HemisphereApplet child class
-///  above.
-////////////////////////////////////////////////////////////////////////////////
-TransientDetector TransientDetector_instance[2];
+  class Applet : public ArticCircleApplet<Model>
+  {
+  public:
+    Applet()
+    {
+      setName("Transient");
 
-void TransientDetector_Start(bool hemisphere) {TransientDetector_instance[hemisphere].BaseStart(hemisphere);}
-void TransientDetector_Controller(bool hemisphere, bool forwarding) {TransientDetector_instance[hemisphere].BaseController(forwarding);}
-void TransientDetector_View(bool hemisphere) {TransientDetector_instance[hemisphere].BaseView();}
-void TransientDetector_OnButtonPress(bool hemisphere) {TransientDetector_instance[hemisphere].OnButtonPress();}
-void TransientDetector_OnEncoderMove(bool hemisphere, int direction) {TransientDetector_instance[hemisphere].OnEncoderMove(direction);}
-void TransientDetector_ToggleHelpScreen(bool hemisphere) {TransientDetector_instance[hemisphere].HelpScreen();}
-uint32_t TransientDetector_OnDataRequest(bool hemisphere) {return TransientDetector_instance[hemisphere].OnDataRequest();}
-void TransientDetector_OnDataReceive(bool hemisphere, uint32_t data) {TransientDetector_instance[hemisphere].OnDataReceive(data);}
+      state_ = 0;
+
+      setCallback<Model::Release>([this](const float& v){
+        this->releaseCoeff_ = onePoleCoeff(kSampleRate, v);
+      });
+      setCallback<Model::Gain>([this](const float& v){
+        this->gain_ = v;
+      });
+    }
+
+    virtual std::pair<int,int> tick(const std::pair<bool, bool>& gateIn, const std::pair<int,int>& cvIn) final
+    {
+        const auto input = sample_t::fromRatio(In(0), HEMISPHERE_3V_CV);
+        const auto rectified = abs(input) * gain_;
+        state_ = rectified > state_ ? rectified : state_ + (rectified - state_) * releaseCoeff_;
+        return {float(state_) * HEMISPHERE_3V_CV, 0};
+      }
+
+  	/* Draw the screen */
+    void drawApplet() final
+    {
+      ArticCircleApplet<Model>::drawApplet();
+
+      gfxSkyline();
+    }
+
+  private:
+    sample_t gain_;
+    sample_t state_;
+    sample_t releaseCoeff_;
+  };
+
+  Applet instance_[2];
+}
+
+void TransientDetector_Start(bool hemisphere) {NTransientDetector::instance_[hemisphere].BaseStart(hemisphere);}
+void TransientDetector_Controller(bool hemisphere, bool forwarding) {NTransientDetector::instance_[hemisphere].BaseController(forwarding);}
+void TransientDetector_View(bool hemisphere) {NTransientDetector::instance_[hemisphere].BaseView();}
+void TransientDetector_OnButtonPress(bool hemisphere) {NTransientDetector::instance_[hemisphere].OnButtonPress();}
+void TransientDetector_OnEncoderMove(bool hemisphere, int direction) {NTransientDetector::instance_[hemisphere].OnEncoderMove(direction);}
+void TransientDetector_ToggleHelpScreen(bool hemisphere) {NTransientDetector::instance_[hemisphere].HelpScreen();}
+uint32_t TransientDetector_OnDataRequest(bool hemisphere) {return NTransientDetector::instance_[hemisphere].OnDataRequest();}
+void TransientDetector_OnDataReceive(bool hemisphere, uint32_t data) {NTransientDetector::instance_[hemisphere].OnDataReceive(data);}
