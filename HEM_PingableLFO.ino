@@ -27,7 +27,6 @@ namespace NPingableLfo
     using Properties = PropertySet<>;
   };
 
-
   class Applet : public ArticCircleApplet<Model> {
   public:
     Applet()
@@ -37,42 +36,33 @@ namespace NPingableLfo
       setName("Ping LFO");
     }
 
+    virtual void reset() final
+    {
+      phaser_.reset(kSampleRate);
+    }
+
     virtual std::pair<int,int> tick(const std::pair<bool, bool>& gateIn, const std::pair<int,int>& cvIn) final
     {
-      if (Gate(0) && !lastGate_) {
-        const auto now = OC::CORE::ticks;
-        if (lastTick_ != 0)
-        {
-          const auto delta = float(now - lastTick_);
-          targetTempo_ = kSampleRate / delta * 60.f;
-          offset_ = sample_t::frac(phase_ + sample_t(0.5)) - sample_t(0.5);
-          phaseIncrease_ = sample_t(1.f / delta) * (sample_t(1) - offset_);
-          //phase_ = sample_t(0);
-        }
-        lastTick_ = now;
+      const bool gate = Gate(0);
+      if (gate && (lastGate_ != gate))
+      {
+        phaser_.ping(OC::CORE::ticks);
       }
-      lastGate_ = Gate(0);
-      phase_ = sample_t::frac(phase_ + phaseIncrease_);
-      return {float(phase_) * HEMISPHERE_MAX_CV,0};
+      lastGate_ =gate;
+      return {float(phaser_.tick()) * HEMISPHERE_MAX_CV,0};
     }
 
     void drawApplet() final
     {
       ArticCircleApplet<NPingableLfo::Model>::drawApplet();
 
-      gfxPrintF(25,15,float(targetTempo_));
-      gfxPrintF(25,25,float(offset_));
+      gfxPrintF(25,15,phaser_.tempo());
       gfxSkyline();
     }
 
   private:
-    uint32_t lastTick_ = 0;
-    float targetTempo_ = 0;
-    sample_t phase_ = 0;
-    sample_t phaseIncrease_ = 0;
-    sample_t offset_ = 0;
+    PingablePhaser phaser_;
     bool lastGate_ = false;
-    VectorOscillator osc[2];
   };
 
   Applet instance_[2];

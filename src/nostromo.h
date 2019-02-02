@@ -1,5 +1,6 @@
 #include "nostromo/ac_properties.h"
 #include "nostromo/applet.h"
+#include "nostromo/clock.h"
 #include "nostromo/dsp.h"
 #include "nostromo/estd.h"
 #include "nostromo/midi.h"
