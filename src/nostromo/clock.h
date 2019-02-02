@@ -2,6 +2,8 @@
 
 #include "fixed.h"
 
+#include <functional>
+
 class PingablePhaser
 {
 public:
@@ -16,4 +18,17 @@ private:
   sample_t phaseIncrease_ = 0;
   uint32_t lastPing_ = 0;
   float targetTempo_ = 0;
+};
+
+class PhaserDivider
+{
+public:
+  using fixed = FixedFP<int32_t, 20>;
+  void setAmount(int amount);
+
+  sample_t tick(sample_t value);
+
+private:
+  fixed lastValue_;
+  fixed amount_;
 };

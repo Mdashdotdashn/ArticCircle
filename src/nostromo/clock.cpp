@@ -32,3 +32,14 @@ float PingablePhaser::tempo() const
 {
   return targetTempo_;
 }
+
+void PhaserDivider::setAmount(int amount)
+{
+  amount_ = fixed(amount);
+  lastValue_ = 0;
+}
+
+sample_t PhaserDivider::tick(sample_t value)
+{
+  return fixed::frac(fixed(value) * amount_);
+}

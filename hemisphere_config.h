@@ -8,7 +8,7 @@
 // 0x40 = Logic
 // 0x80 = Other
 
-#define HEMISPHERE_AVAILABLE_APPLETS 5
+#define HEMISPHERE_AVAILABLE_APPLETS 7
 
 //////////////////  id  cat   class name
 #define HEMISPHERE_APPLETS { \
@@ -16,6 +16,8 @@
     DECLARE_APPLET( 5, 0x08, ClockedLogic), \
     DECLARE_APPLET( 4, 0x08, Oscillator), \
     DECLARE_APPLET( 1, 0x04, TransientDetector), \
+    DECLARE_APPLET( 6, 0x04, PingableLfo), \
+    DECLARE_APPLET( 7, 0x04, PingableSyncopation), \
     DECLARE_APPLET( 2, 0x40, TriggerToGate), \
 }
 /*    DECLARE_APPLET(127, 0x80, DIAGNOSTIC), \ */
