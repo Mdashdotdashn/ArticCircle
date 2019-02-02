@@ -7,6 +7,7 @@
 */
 
 #include "OC_calibration.h"
+#include "OC_strings.h"
 
 using OC::DAC;
 

@@ -36,13 +36,8 @@
 
 OC::App available_apps[] = {
   DECLARE_APP('H','S', "Hemisphere", HEMISPHERE),
-  DECLARE_APP('M','I', "Captain MIDI", MIDI),
-  DECLARE_APP('D','2', "Darkest Timeline", TheDarkestTimeline),
-  DECLARE_APP('E','N', "Enigma", EnigmaTMWS),
-  DECLARE_APP('N','N', "Neural Net", NeuralNetwork),
   DECLARE_APP('S','C', "Scale Editor", SCALEEDITOR),
   DECLARE_APP('W','A', "Waveform Editor", WaveformEditor),
-  DECLARE_APP('P','O', "Pong", PONGGAME),
   DECLARE_APP('B','R', "Backup / Restore", Backup),
   DECLARE_APP('S','E', "Setup / About", Settings),
 };
@@ -64,7 +59,6 @@ struct GlobalSettings {
   
   OC::Scale user_scales[OC::Scales::SCALE_USER_LAST];
   OC::Pattern user_patterns[OC::Patterns::PATTERN_USER_ALL];
-  HS::TuringMachine user_turing_machines[HS::TURING_MACHINE_COUNT];
   HS::VOSegment user_waveforms[HS::VO_SEGMENT_COUNT];
   OC::Autotune_data auto_calibration_data[DAC_CHANNEL_LAST];
 };
@@ -104,7 +98,6 @@ void save_global_settings() {
 
   memcpy(global_settings.user_scales, OC::user_scales, sizeof(OC::user_scales));
   memcpy(global_settings.user_patterns, OC::user_patterns, sizeof(OC::user_patterns));
-  memcpy(global_settings.user_turing_machines, HS::user_turing_machines, sizeof(HS::user_turing_machines));
   memcpy(global_settings.user_waveforms, HS::user_waveforms, sizeof(HS::user_waveforms));
   memcpy(global_settings.auto_calibration_data, OC::auto_calibration_data, sizeof(OC::auto_calibration_data));
   // scaling settings:
@@ -260,7 +253,6 @@ void Init(bool reset_settings) {
                     global_settings_storage.page_index(),global_settings.current_app_id);
       memcpy(user_scales, global_settings.user_scales, sizeof(user_scales));
       memcpy(user_patterns, global_settings.user_patterns, sizeof(user_patterns));
-      memcpy(HS::user_turing_machines, global_settings.user_turing_machines, sizeof(HS::user_turing_machines));
       memcpy(HS::user_waveforms, global_settings.user_waveforms, sizeof(HS::user_waveforms));
       memcpy(auto_calibration_data, global_settings.auto_calibration_data, sizeof(auto_calibration_data));
       DAC::choose_calibration_data(); // either use default data, or auto_calibration_data
