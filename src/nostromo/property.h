@@ -11,7 +11,6 @@ namespace detail
   struct IProperty
   {
       virtual void update(int direction) {};
-      virtual String stringValue() {return "IProp";};
   };
 
   template <typename T>
@@ -21,6 +20,9 @@ namespace detail
     using Callback = std::function<void(const T&)>;
 
     void setValue(T value) { value_ = std::move(value); }
+    void setLabel(const String& label) {
+      label_ = label;
+    };
     void setCallback(const Callback& callback)
     {
       callback_ = callback;
@@ -32,6 +34,7 @@ namespace detail
     }
 
     Callback callback_;
+    String label_;
     T value_ = {};
   };
 } // detail
@@ -56,13 +59,6 @@ struct Property<int, void> : detail::PropertyBase<int>
     max_ = max;
   }
 
-  String stringValue() override
-  {
-    static char str[16];
-    snprintf(str, sizeof(str), "%4d", value_);
-    return str;
-  }
-
   int min_ = 0;
   int max_ = 1;
 };
@@ -82,13 +78,6 @@ struct Property<float, void>: detail::PropertyBase<float>
   {
     min_ = min;
     max_ = max;
-  }
-
-  String stringValue() override
-  {
-    static char str[16];
-    snprintf(str, sizeof(str), "%10.2f", value_);
-    return str;
   }
 
   float min_ = 0.f;
@@ -119,10 +108,6 @@ struct Property<T, estd::EnableIfEnum<T>> : detail::PropertyBase<T>
     detail::PropertyBase<T>::triggerCallback();
   }
 
-  String stringValue() override
-  {
-    return enumStrings_[std::size_t(detail::PropertyBase<T>::value_)];
-  }
   NameStore enumStrings_;
 };
 
