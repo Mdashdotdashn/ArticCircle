@@ -26,6 +26,7 @@ namespace detail
     void setCallback(const Callback& callback)
     {
       callback_ = callback;
+      triggerCallback();
     }
 
     void triggerCallback()
@@ -57,6 +58,8 @@ struct Property<int, void> : detail::PropertyBase<int>
   {
     min_ = min;
     max_ = max;
+    value_ = clamp(value_ , min_, max_);
+    triggerCallback();
   }
 
   int min_ = 0;
@@ -78,6 +81,8 @@ struct Property<float, void>: detail::PropertyBase<float>
   {
     min_ = min;
     max_ = max;
+    value_ = clamp(value_ , min_, max_);
+    triggerCallback();
   }
 
   float min_ = 0.f;
