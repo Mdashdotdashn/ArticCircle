@@ -143,7 +143,7 @@ class ArticCircleApplet: public HemisphereApplet
 {
 public:
 
-  virtual std::pair<int,int> tick(const std::pair<bool, bool>&, const std::pair<int,int>&) = 0;
+  virtual void tick() = 0;
   virtual void reset() {};
 
   void gfxPrintF(int x, int y, float value)
@@ -188,11 +188,7 @@ public:
 
 /* Run during the interrupt service routine, 16667 times per second */
   void Controller() {
-    std::pair<bool, bool> gateIn = {Gate(0), Gate(1)};
-    std::pair<int, int> cvIn = {In(0), In(1)};
-    const auto out = tick(gateIn, cvIn);
-    Out(0, out.first);
-    Out(1, out.second);
+    tick();
   }
 
 /* Draw the screen */

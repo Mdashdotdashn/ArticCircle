@@ -45,7 +45,9 @@ namespace detail
 
     String Render() final
     {
-      return propertyToString(property_);
+      String label = property_.label_;
+      if (label.length() > 0) label+= "=";
+       return label + propertyToString(property_);
     }
 
     virtual String propertyToString(const Property<T>& ) = 0;

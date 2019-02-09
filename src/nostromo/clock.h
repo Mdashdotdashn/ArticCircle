@@ -32,3 +32,16 @@ private:
   fixed lastValue_;
   fixed amount_;
 };
+
+class FlankDetector
+{
+public:
+  bool tick(const sample_t value)
+  {
+    bool flank = value < last_;
+    last_ = value;
+    return flank;
+  }
+private:
+  sample_t last_;
+};

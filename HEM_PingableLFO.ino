@@ -41,7 +41,7 @@ namespace NPingableLfo
       phaser_.reset(kSampleRate);
     }
 
-    virtual std::pair<int,int> tick(const std::pair<bool, bool>& gateIn, const std::pair<int,int>& cvIn) final
+    virtual void tick()
     {
       const bool gate = Gate(0);
       if (gate && (lastGate_ != gate))
@@ -49,7 +49,7 @@ namespace NPingableLfo
         phaser_.ping(OC::CORE::ticks);
       }
       lastGate_ =gate;
-      return {float(phaser_.tick()) * HEMISPHERE_MAX_CV,0};
+      Out(0,float(phaser_.tick()) * HEMISPHERE_MAX_CV);
     }
 
     void drawApplet() final

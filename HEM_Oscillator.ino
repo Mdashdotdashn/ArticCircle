@@ -73,19 +73,16 @@ namespace NOscillator
         bind<Model::RootNote>(root_);
       }
 
-      std::pair<int,int> tick(const std::pair<bool, bool>& gateIn, const std::pair<int,int>& cvIn) final
+      void tick() final
       {
-//        if (Changed(0) || forcePitchEvaluation_)
-//        {
-          const int32_t pitch = In(0);
-          const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
-          lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24;
-          const float frequency = midiNoteToFrequency(lastNote_);
-          phaseIncrease_ = sample_t(frequency / kSampleRate);
-          forcePitchEvaluation_ = false;
-//        }
+        const int32_t pitch = In(0);
+        const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
+        lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24;
+        const float frequency = midiNoteToFrequency(lastNote_);
+        phaseIncrease_ = sample_t(frequency / kSampleRate);
+        forcePitchEvaluation_ = false;
         phase_ = sample_t::frac(phase_ + phaseIncrease_);
-        return { float(Sine(phase_) * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV , 0};
+        Out(0, float(Sine(phase_) * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
       }
 
   	/* Draw the screen */

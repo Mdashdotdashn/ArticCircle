@@ -37,9 +37,8 @@ namespace NClassName
       setName("ClassName");
     }
 
-    virtual std::pair<int,int> tick(const std::pair<bool, bool>& gateIn, const std::pair<int,int>& cvIn) final
+    virtual void tick() final
     {
-      return {0,0};
     }
 
     void drawApplet() final

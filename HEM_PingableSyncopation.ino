@@ -29,10 +29,21 @@ namespace NPingableSyncopation
       Denominator()
       {
         setValue(4);
-        setRange(1, 12);
+        setLabel("div");
+        setRange(2, 12);
       }
     };
-    using Properties = PropertySet<Denominator>;
+
+    struct Offset: Property<int>
+    {
+      Offset()
+      {
+        setValue(1);
+        setLabel("off");
+      }
+    };
+
+    using Properties = PropertySet<Denominator, Offset>;
   };
 
   class Applet : public ArticCircleApplet<Model> {
@@ -43,9 +54,13 @@ namespace NPingableSyncopation
       //       123456789
       setName("Ping Sync");
 
-      setCallback<Model::Denominator>([this](const int v){
+      auto& offsetProperty = this->Get<Model::Offset>();
+      setCallback<Model::Denominator>([this, &offsetProperty](const int v){
         this->divider_.setAmount(v);
+        offsetProperty.setRange(1, v - 1);
       });
+
+      bind<Model::Offset>(offset_);
     }
 
     virtual void reset() final
@@ -53,17 +68,34 @@ namespace NPingableSyncopation
       phaser_.reset(kSampleRate);
     }
 
-    virtual std::pair<int,int> tick(const std::pair<bool, bool>& gateIn, const std::pair<int,int>& cvIn) final
+    virtual void tick() final
     {
       const bool gate = Gate(0);
       if (gate && (lastGate_ != gate))
       {
         phaser_.ping(OC::CORE::ticks);
       }
-      const auto value = divider_.tick(phaser_.tick());
+
+      // tick main pingable phaser, reset offset on flank
+      const auto mainPhase = phaser_.tick();
+      if (mainflank_.tick(mainPhase))
+      {
+        offsetCounter_ = offset_;
+      }
+
+      bool outputClock = false;
+      const auto subPhaseTriggered = subFlank_.tick(divider_.tick(mainPhase));
+      if (subPhaseTriggered)
+      {
+        if (offsetCounter_ == 0) // offset
+        {
+          outputClock = true;
+        }
+        offsetCounter_--;
+      }
 
       lastGate_ =gate;
-      return {float(value) * HEMISPHERE_MAX_CV,0};
+      if (outputClock) ClockOut(0);
     }
 
     void drawApplet() final
@@ -73,9 +105,13 @@ namespace NPingableSyncopation
     }
 
   private:
+    FlankDetector mainflank_;
+    FlankDetector subFlank_;
     PingablePhaser phaser_;
     PhaserDivider divider_;
     bool lastGate_ = false;
+    int offsetCounter_ = 0;
+    int offset_ = 0;
   };
 
   Applet instance_[2];

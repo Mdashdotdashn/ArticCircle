@@ -33,24 +33,24 @@ namespace NClockedLogic
       x,
       COUNT
     };
-  
+
     enum class Mode_t
     {
       triggered,
       clocked,
       COUNT
     };
-    
+
     struct OperatorBase : Property<Operator_t>
     {
       OperatorBase()
       {
         setValue(Operator_t::source);
 
-        setEnumStrings({"Src", "Not", "And", "Or", "Xor"});        
+        setEnumStrings({"Src", "Not", "And", "Or", "Xor"});
       }
     };
-    
+
     struct OperatorL : OperatorBase
     {};
 
@@ -67,13 +67,13 @@ namespace NClockedLogic
     };
 
     using Properties = PropertySet<OperatorL, OperatorR, Mode>;
-  }; 
+  };
 
 
   class Applet : public ArticCircleApplet<NClockedLogic::Model> {
   public:
-    Applet() 
-    { 
+    Applet()
+    {
       // Maximum 9 characters
       //       123456789
       setName("Clk.Logic");
@@ -83,13 +83,8 @@ namespace NClockedLogic
       bind<Model::OperatorR>(operatorR_);
     }
 
-    virtual std::pair<int,int> tick(const std::pair<bool, bool>& gateIn, const std::pair<int,int>& cvIn) final
+    virtual void tick() final
     {
-      if (mode_ == Model::Mode_t::triggered)
-      {
-        return cvIn;
-      }
-      return { 0, 0} ;
     }
 
     void drawApplet() final
@@ -115,4 +110,3 @@ void ClockedLogic_OnEncoderMove(bool hemisphere, int direction) {NClockedLogic::
 void ClockedLogic_ToggleHelpScreen(bool hemisphere) {NClockedLogic::instance_[hemisphere].HelpScreen();}
 uint32_t ClockedLogic_OnDataRequest(bool hemisphere) {return NClockedLogic::instance_[hemisphere].OnDataRequest();}
 void ClockedLogic_OnDataReceive(bool hemisphere, uint32_t data) {NClockedLogic::instance_[hemisphere].OnDataReceive(data);}
-

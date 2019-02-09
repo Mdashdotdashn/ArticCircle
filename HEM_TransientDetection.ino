@@ -61,13 +61,13 @@ namespace NTransientDetector
       });
     }
 
-    virtual std::pair<int,int> tick(const std::pair<bool, bool>& gateIn, const std::pair<int,int>& cvIn) final
+    virtual void tick() final
     {
-        const auto input = sample_t::fromRatio(In(0), HEMISPHERE_3V_CV);
-        const auto rectified = abs(input) * gain_;
-        state_ = rectified > state_ ? rectified : state_ + (rectified - state_) * releaseCoeff_;
-        return {float(state_) * HEMISPHERE_3V_CV, 0};
-      }
+      const auto input = sample_t::fromRatio(In(0), HEMISPHERE_3V_CV);
+      const auto rectified = abs(input) * gain_;
+      state_ = rectified > state_ ? rectified : state_ + (rectified - state_) * releaseCoeff_;
+      Out (0,float(state_) * HEMISPHERE_3V_CV);
+    }
 
   	/* Draw the screen */
     void drawApplet() final
