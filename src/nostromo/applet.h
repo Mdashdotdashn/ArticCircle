@@ -112,7 +112,7 @@ struct PropertyManager
     cursor_ = 0;
   }
 
-  inline auto size()
+  inline auto size() const
   {
     return properties_.size();
   }
@@ -132,8 +132,13 @@ struct PropertyManager
     properties_.forEach(fn);
   }
 
+  std::size_t cursor() const
+  {
+      return cursor_;
+  }
+
   Properties properties_;
-  int cursor_;
+  std::size_t cursor_;
 };
 
 //------------------------------------------------------------------------------
@@ -187,7 +192,8 @@ public:
   }
 
 /* Run during the interrupt service routine, 16667 times per second */
-  void Controller() {
+  void Controller()
+  {
     tick();
   }
 
@@ -203,17 +209,18 @@ public:
         gfxRect(58, offset, 4, 4);
       }
     }
-
     drawApplet();
   }
 
   virtual void drawApplet()
   {
+    const auto cursor = propertyManager_.cursor();
     for (std::size_t index = 0; index < propertyManager_.size(); index++)
     {
       const auto x = 1+ 20 * (index / 4);
       const auto y = 15 + 8 * (index % 4);
-      gfxPrint(x, y, propertyManager_.properties_.GetStringConverter(index).Render().c_str());
+      if ((index == cursor) && CursorBlink()) gfxLine(x, y, x, y+ 6);
+      gfxPrint(x +2, y, propertyManager_.properties_.GetStringConverter(index).Render().c_str());
     }
   }
 
