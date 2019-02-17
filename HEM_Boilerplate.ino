@@ -37,6 +37,8 @@ namespace NClassName
       setName("ClassName");
     }
 
+    virtual void reset() final {};
+
     virtual void tick() final
     {
     }
