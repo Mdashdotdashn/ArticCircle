@@ -20,7 +20,6 @@
 
 #include "grids.h"
 
-
 namespace NGridsChannel
 {
   struct Model
@@ -30,9 +29,9 @@ namespace NGridsChannel
       BD,
       SD,
       HH,
-      BS,
-      BH,
-      SH,
+      BD_ALT,
+      SD_ALT,
+      HH_ALT,
       COUNT
     };
 
@@ -49,22 +48,25 @@ namespace NGridsChannel
       Density()
       {
         setValue(0.5f);
+        setLabel("Ds");
       }
     };
 
-    struct X: PercentageProperty
+    struct X: Property<int>
     {
       X()
       {
-        setValue(0.5f);
+        setRange(0, 255);
+        setValue(128);
       }
     };
 
-    struct Y: PercentageProperty
+    struct Y: Property<int>
     {
       Y()
       {
-        setValue(0.5f);
+        setRange(0, 255);
+        setValue(128);
       }
     };
 
@@ -73,11 +75,14 @@ namespace NGridsChannel
       Mode()
       {
         setValue(Modes::BD);
-        setEnumStrings({"BD", "SD", "HH", "BS", "BH", "SH"});
+        setEnumStrings({"BD", "SD", "HH", "B-", "S-", "H-"});
       }
     };
 
-    using Properties = PropertySet<Mode, Density, X, Y>;
+    struct ModeL: Mode{};
+    struct ModeR: Mode{};
+
+    using Properties = PropertySet<ModeL , ModeR , Density, X, Y>;
   };
 
   class Applet: public ArticCircleApplet<Model>
@@ -87,21 +92,21 @@ namespace NGridsChannel
     {
       setName("Grid");
 
-      bind<Model::Mode>(mode_);
+      bind<Model::ModeL>(mode_[0]);
+      bind<Model::ModeR>(mode_[1]);
+
       setCallback<Model::Density>([this](const float &d){
         density_ = int(d * 255);
       });
-      setCallback<Model::X>([this](const float &x){
-        x_ = int(x * 255);
-      });
-      setCallback<Model::Y>([this](const float &y){
-        y_ = int(y * 255);
-      });
+
+      bind<Model::X>(x_);
+      bind<Model::Y>(y_);
     }
 
     virtual void reset() final
     {
       channel_.reset();
+      output_[0] = output_[1] = false;
     }
 
     void processStep()
@@ -109,41 +114,23 @@ namespace NGridsChannel
         const auto density =  constrain(density_ + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
         const uint8_t threshold = ~density;
 
-        const auto isSingleOutput = [](Model::Modes mode)
+        ForEachChannel(ch)
         {
-          return (mode == Model::Modes::BD || mode == Model::Modes::SD || mode == Model::Modes::HH);
-        };
- 
-        if (isSingleOutput(mode_))
-        {
-          const auto channel = uint8_t(mode_);
+          const auto channel = grids::Channel::Selector(mode_[ch]);
           const auto level = channel_.level(channel, x_, y_);
+
           if (level > threshold)
           {
-            ClockOut(0); // trigger
-            Out(1, Proportion(level - threshold, 256 - threshold, HEMISPHERE_MAX_CV));
-          }
-        }
-        else // dual
-        {
-          uint8_t left = (mode_ == Model::Modes::BS) || (mode_ == Model::Modes::BH) ? 0 : 1;
-          uint8_t right = (mode_ == Model::Modes::BH) || (mode_ == Model::Modes::SH) ? 2 : 1;
-
-          uint8_t levels[2] =
+            if (density == 255) // Output levels
             {
-              channel_.level(left, x_, y_),
-              channel_.level(right, x_, y_)
-            };
-
-          if (density == 255) // Output levels
-          {
-            Out(0, Proportion(levels[0], 256, HEMISPHERE_MAX_CV));
-            Out(1, Proportion(levels[1], 256, HEMISPHERE_MAX_CV));
-          }
-          else // Output trigger
-          {
-            if (levels[0] > threshold) ClockOut(0);
-            if (levels[1] > threshold) ClockOut(1);
+              Out(ch, Proportion(level, 256, HEMISPHERE_MAX_CV));
+            }
+            else
+            {
+              output_[ch] = !output_[ch];
+              GateOut(ch, output_[ch]);
+//              ClockOut(ch); // trigger
+            }
           }
         }
     }
@@ -176,8 +163,9 @@ namespace NGridsChannel
     uint8_t x_;
     uint8_t y_;
     uint8_t density_;
-    Model::Modes mode_;
+    Model::Modes mode_[2];
 
+    bool output_[2];
     grids::Channel channel_;
   };
 
