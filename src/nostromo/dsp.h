@@ -1,9 +1,12 @@
 #pragma once
 
+#include "math.h"
+#include "fixed.h"
+#include <cmath>
 //------------------------------------------------------------------------------
 
 template <typename T>
-T Sine(const T& in)
+T Sine(const T& x)
 {
   const auto FastSine = [](const T& value) -> T
   {
@@ -20,7 +23,14 @@ T Sine(const T& in)
     return result;
   };
 
-  return FastSine((in - T(0.5)) * T(2));
+  return FastSine((frac(x) - T(0.5)) * T(2));
+}
+
+template <typename T>
+T Cosine(const T& x)
+{
+
+  return Sine(x + T(0.25));
 }
 
 //------------------------------------------------------------------------------

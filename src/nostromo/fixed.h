@@ -332,3 +332,15 @@ static FixedFP<C,F> min(const FixedFP<C,F> &fp1, const FixedFP<C,F> &fp2)
 }
 
 typedef FixedFP<int32_t, 27> sample_t;
+
+template <typename C,uint8_t F>
+FixedFP<C,F> frac(const FixedFP<C,F>& x)
+{
+  return FixedFP<C,F>::frac(x);
+}
+
+template <typename C,uint8_t F>
+FixedFP<C,F> floor(const FixedFP<C,F>& x)
+{
+  return FixedFP<C,F>::floor(x);
+}
