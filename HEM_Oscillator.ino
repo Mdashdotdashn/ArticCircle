@@ -53,24 +53,29 @@ namespace NOscillator
         setName("Lil.Osc");
 
         root_ = 0;
-        phaseIncrease_ = sample_t(440.f / kSampleRate);
-        phase_ = sample_t(0);
         quantizer_.Init();
         lastNote_ = 0;
-        forcePitchEvaluation_ = false;
         eg_.init();
 
         setCallback<Model::Decay>([this](const auto& decay){
           eg_.setCoefficients(calcSlewCoeff(16), calcSlewCoeff(kSampleRate * decay));
-          this->forcePitchEvaluation_ = true;
         });
 
         setCallback<Model::Scale>([this](const auto& scale){
           quantizer_.Configure(OC::Scales::GetScale(scale), 0xffff);
-          this->forcePitchEvaluation_ = true;
         });
 
         bind<Model::RootNote>(root_);
+
+        osc_.setTicker([](const sample_t& phase)
+        {
+          return Sine(phase);
+        });
+      }
+
+      void reset() final
+      {
+        osc_.reset(kSampleRate);
       }
 
       void tick() final
@@ -79,10 +84,8 @@ namespace NOscillator
         const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
         lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24;
         const float frequency = midiNoteToFrequency(lastNote_);
-        phaseIncrease_ = sample_t(frequency / kSampleRate);
-        forcePitchEvaluation_ = false;
-        phase_ = sample_t::frac(phase_ + phaseIncrease_);
-        Out(0, float(Sine(phase_) * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
+        osc_.setFrequency(frequency);
+        Out(0, float(osc_.tick() * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
       }
 
   	/* Draw the screen */
@@ -112,12 +115,10 @@ namespace NOscillator
 
   private:
     ADEnvelope<sample_t> eg_;
-    sample_t phaseIncrease_;
-    sample_t phase_;
+    Oscillator<sample_t> osc_;
     braids::Quantizer quantizer_;
     int32_t lastNote_;
     int root_;
-    bool forcePitchEvaluation_;
   };
 
   Applet instance_[2];
