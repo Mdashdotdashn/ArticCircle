@@ -30,12 +30,19 @@ struct selector<sample_t>
   using type_t = FixedFP<int32_t, 15>;
 };
 
+// would be best but seems too heavy
 template <typename T>
-T fade(const T& t)
+T fadeQuintic(const T& t)
 {
   using Fixed = typename selector<T>::type_t;
   const auto f = Fixed(t);
   return f * f * f * (f * (f * Fixed(6) - Fixed(15)) + Fixed(10));
+}
+
+template <typename T>
+T fadeHermite(const T& t)
+{
+  return t * t *(T(3) - T(2) * t);
 }
 
 template <typename T>
@@ -96,9 +103,9 @@ T calc(const T& xc, const T& yc, const T& zc) const
   const auto z = zc - floor(zc);
 
   // Compute fade curves for each of x, y, z
-  const auto u = fade(x);
-  const auto v = fade(y);
-  const auto w = fade(z);
+  const auto u = fadeHermite(x);
+  const auto v = fadeHermite(y);
+  const auto w = fadeHermite(z);
 
   // Hash coordinates of the 8 cube corners
   const auto A = p[pX] +pY;
@@ -174,7 +181,7 @@ T SEvaluateScaledNoise(const Noise<T>& noiseSource,
 {
   T rawValue = SEvaluateNoise(
     noiseSource, geometry.x, geometry.y, geometry.z, geometry.radius, phasor);
-  return (rawValue - geometry.scalingOffset) * geometry.scalingRatio;
+  return (rawValue - geometry.scalingOffset) / geometry.scalingRatio;
 }
 
 template <typename T>
@@ -187,6 +194,8 @@ class Evaluator
   };
   using Geometry_t = Geometry<T>;
 
+  constexpr static std::size_t kSubSampleCount = 10;
+
 public:
   Evaluator(const Noise<T>& noiseSource)
     : noiseSource_(noiseSource)
@@ -198,18 +207,19 @@ public:
     geometry_ = geometry;
     phasor_ = T(0);
     noiseRange_ = std::pair<T, T>(2, -2);
+    subSampleCount_ = kSubSampleCount - 1;
   }
 
   bool Finished() { return processingState_ == ProcessingState::Done; }
 
   Geometry_t GetGeometry()
   {
-    assert(Finished());
     return geometry_;
   }
 
-  void Tick(const T& increment)
+  void evaluateNextStep()
   {
+    const auto increment = T(0.01); // Sample 100 points
     T value = SEvaluateNoise(
       noiseSource_, geometry_.x, geometry_.y, geometry_.z, geometry_.radius, phasor_);
     noiseRange_.first = std::min(noiseRange_.first, value);
@@ -219,8 +229,20 @@ public:
     if (phasor_ > T(1))
     {
       geometry_.scalingOffset = (noiseRange_.second + noiseRange_.first) / T(2);
-      geometry_.scalingRatio = T(2) / (noiseRange_.second - noiseRange_.first);
+      geometry_.scalingRatio = (noiseRange_.second - noiseRange_.first) / T(2);
       processingState_ = ProcessingState::Done;
+    }
+  }
+
+  void Tick()
+  {
+    if (!Finished())
+    {
+      subSampleCount_ = (subSampleCount_ + 1) % kSubSampleCount; // We can't afford every sample
+      if (subSampleCount_ == 0)
+      {
+        evaluateNextStep();
+      }
     }
   }
 
@@ -230,6 +252,7 @@ private:
   std::pair<T, T> noiseRange_;
   Geometry_t geometry_;
   T phasor_;
+  std::size_t subSampleCount_ = 0;
 };
 
 template <typename T>
@@ -332,12 +355,9 @@ public:
 
   T tick(T phasor)
   {
-    const bool evaluating = !evaluator_.Finished();
-    if (evaluating)
-    {
-      evaluator_.Tick(T(0.01));
-    }
-    const bool evaluationFinished = evaluator_.Finished();
+    const auto evaluating = !evaluator_.Finished();
+    evaluator_.Tick();
+    const auto evaluationFinished = evaluator_.Finished();
     if (evaluating && evaluationFinished)
     {
       renderer_.QueueGeometry(evaluator_.GetGeometry());

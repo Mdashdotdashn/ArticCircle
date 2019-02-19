@@ -14,9 +14,9 @@ T clamp(const T& a,const T&low, const T&high)
   return std::max(std::min(a,high),low);
 }
 
-/*
+
 template <typename T>
 T frac(const T& x)
 {
   return x - floor(x);
-}*/
+}
