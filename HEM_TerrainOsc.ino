@@ -33,7 +33,7 @@ namespace NTerrainOsc
       Harmonics()
       {
         setLabel("h");
-        setRange(1.f, 7.f);
+        setRange(1.f, 7.f, 0.2f);
         setValue(1.f);
       }
     };

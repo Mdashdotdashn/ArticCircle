@@ -73,7 +73,7 @@ struct Property<float, void>: detail::PropertyBase<float>
 {
   void update(int direction) override
   {
-    value_ = clamp(value_ + float(direction)/10.f, min_, max_);
+    value_ = clamp(value_ + float(direction) * increment_, min_, max_);
     triggerCallback();
   }
 
@@ -82,7 +82,7 @@ struct Property<float, void>: detail::PropertyBase<float>
     min_ = min;
     max_ = max;
     value_ = clamp(value_ , min_, max_);
-    increment_ = (increment == 0.f) ? (max_ - min_) / 50.f : increment_;
+    increment_ = (increment == 0.f) ? (max_ - min_) / 50.f : increment;
     triggerCallback();
   }
 
