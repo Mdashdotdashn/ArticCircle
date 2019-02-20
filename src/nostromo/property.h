@@ -77,16 +77,18 @@ struct Property<float, void>: detail::PropertyBase<float>
     triggerCallback();
   }
 
-  void setRange(int min, int max)
+  void setRange(float min, float max,float increment = 0.f)
   {
     min_ = min;
     max_ = max;
     value_ = clamp(value_ , min_, max_);
+    increment_ = (increment == 0.f) ? (max_ - min_) / 50.f : increment_;
     triggerCallback();
   }
 
   float min_ = 0.f;
   float max_ = 1.f;
+  float increment_= 1.f / 50.f;
 };
 
 //------------------------------------------------------------------------------

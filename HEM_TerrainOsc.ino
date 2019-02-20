@@ -43,7 +43,7 @@ namespace NTerrainOsc
       Motion()
       {
         setLabel("m");
-        setRange(0.f, 1.f);
+        setRange(0.f, 1.f, 0.01f);
         setValue(0.f);
       }
     };
