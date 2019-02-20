@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 #include "src/nostromo.h"
-#include "src/nostromo/perlin.h"
+#include "src/nostromo/terrain.h"
 
 namespace NTerrainOsc
 {
@@ -95,16 +95,15 @@ namespace NTerrainOsc
 
     virtual void reset() final
     {
-      oscillator_.setFadeCycles(1);
       phasor_.reset(kSampleRate);
       motion_.reset(kSampleRate);
     }
 
     virtual void tick() final
     {
-      const auto positionOffset = motion_.tick();
-      const auto p = position_ + float(sample_t(12) * positionOffset);
-      oscillator_.setParameters(radius_, p, 0., 0.);
+      const auto positionOffset = motion_.tick() * sample_t(8);
+      const auto harmonicOffset = sample_t::fromRatio(DetentedIn(1), HEMISPHERE_MAX_CV) * sample_t(5);
+      oscillator_.setParameters(radius_ + float(harmonicOffset), position_ + float(positionOffset), 0., 0.);
 
       const int32_t pitch = In(0);
       const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
@@ -123,7 +122,7 @@ namespace NTerrainOsc
   private:
     Phasor<sample_t> phasor_;
     Phasor<sample_t> motion_;
-    perlin::Oscillator<sample_t> oscillator_;
+    terrain::Oscillator<sample_t> oscillator_;
     braids::Quantizer quantizer_;
     float freqMult_;
     float radius_;
