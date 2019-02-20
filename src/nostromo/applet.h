@@ -215,10 +215,11 @@ public:
   virtual void drawApplet()
   {
     const auto cursor = propertyManager_.cursor();
+    const auto kParameterRow = 6;
     for (std::size_t index = 0; index < propertyManager_.size(); index++)
     {
-      const auto x = 1+ 20 * (index / 4);
-      const auto y = 15 + 8 * (index % 4);
+      const auto x = 1+ 32 * (index /kParameterRow);
+      const auto y = 15 + 8 * (index % kParameterRow);
       if ((index == cursor) && CursorBlink()) gfxLine(x, y, x, y+ 6);
       gfxPrint(x +2, y, propertyManager_.properties_.GetStringConverter(index).Render().c_str());
     }
