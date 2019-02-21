@@ -220,8 +220,12 @@ public:
     {
       const auto x = 1+ 32 * (index /kParameterRow);
       const auto y = 15 + 8 * (index % kParameterRow);
-      if ((index == cursor) && CursorBlink()) gfxLine(x, y, x, y+ 6);
-      gfxPrint(x +2, y, propertyManager_.properties_.GetStringConverter(index).Render().c_str());
+      const auto stringRender = propertyManager_.properties_.GetStringConverter(index).Render();
+      gfxPrint(x , y, stringRender.c_str());
+      if (index == cursor)
+      {
+        gfxInvert(x, y-1, stringRender.length() * 6 + 1, 9);
+      }
     }
   }
 
