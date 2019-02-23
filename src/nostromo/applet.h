@@ -28,15 +28,19 @@ namespace detail
   struct Index<T, std::tuple<U, Types...>> {
       static const std::size_t value = 1 + Index<T, std::tuple<Types...>>::value;
   };
-}
+
+} // detail
 
 //------------------------------------------------------------------------------
 
 class IPropertyBundle
 {
 public:
+  using Position = struct { int x; int y;};
+
   virtual detail::IProperty& GetProperty() = 0;
   virtual detail::IStringConverter& GetStringConverter() = 0;
+  virtual Position& GetPosition() = 0;
 };
 
 template <class Property>
@@ -49,11 +53,13 @@ public:
 
   detail::IProperty& GetProperty() override { return property_;}
   detail::IStringConverter& GetStringConverter() override { return stringConverter_;}
+  Position& GetPosition() { return position_;}
 
 private:
   Property property_;
   using Converter = string_converter_t<Property>;
   Converter stringConverter_;
+  Position position_;
 };
 
 //------------------------------------------------------------------------------
@@ -62,45 +68,37 @@ template <typename... Props>
 class PropertySet
 {
 public:
+  // Construct
+
   PropertySet()
   {
     bundles_ = detail::mkarray<IPropertyBundle, PropertyBundle, Props...>();
   }
 
-  void forEach(const auto &fn)
+  // Index based accessor
+  IPropertyBundle& GetBundleAt(int index)
   {
-    for(std::unique_ptr<IPropertyBundle>& pb : bundles_)
-    {
-      fn(pb->GetProperty());
-    }
+    return *bundles_[index];
   }
 
+  // Property based accessor
   template <class Property>
-  Property& Get()
+  IPropertyBundle& GetBundle()
   {
     constexpr auto index = detail::Index<Property, std::tuple<Props...>>::value;
-    return static_cast<Property&>(Get(index));
-  }
-
-  detail::IProperty& Get(int index)
-  {
-    const auto pElement = bundles_[index].get();
-    return pElement->GetProperty();
-  }
-
-  detail::IStringConverter& GetStringConverter(int index)
-  {
-    const auto pElement = bundles_[index].get();
-    return pElement->GetStringConverter();
+    return GetBundleAt(index);
   }
 
   constexpr static std::size_t size()
   {
     return sizeof...(Props);
   }
+
 private:
   std::array<std::unique_ptr<IPropertyBundle> ,sizeof...(Props)> bundles_;
 };
+
+//------------------------------------------------------------------------------
 
 template <typename Model>
 struct PropertyManager
@@ -111,6 +109,58 @@ struct PropertyManager
   {
     cursor_ = 0;
   }
+
+  // Index based access
+  auto& GetBundleAt(int index)
+  {
+    return properties_.GetBundleAt(index);
+  }
+
+  auto& GetPropertyAt(int index)
+  {
+    return GetBundleAt(index).GetProperty();
+  }
+
+  auto& GetStringConverterAt(int index)
+  {
+    return GetBundleAt(index).GetStringConverter();
+  }
+
+  auto& GetPositionAt(int index)
+  {
+    return GetBundleAt(index).GetPosition();
+  }
+
+  void SetPosition(int index, int x, int y)
+  {
+    auto& position = GetPositionAt(index);
+    position.x = x;
+    position.y = y;
+  }
+
+  // Type based access
+
+  template <typename Property>
+  auto& GetBundle()
+  {
+    return properties_.template GetBundle<Property>();
+  }
+
+  template <typename Property>
+  Property& GetProperty()
+  {
+    return static_cast<Property&>(GetBundle<Property>().GetProperty());
+  }
+
+  template <typename Property>
+  void SetPosition(int x, int y)
+  {
+    const auto& position = GetBundle<Property>().GetPosition();
+    position.x;
+    position.y;
+  }
+
+  //
 
   inline auto size() const
   {
@@ -124,12 +174,7 @@ struct PropertyManager
 
   void updateCurrent(const int direction)
   {
-    properties_.Get(cursor_).update(direction);
-  }
-
-  void forEach(const auto& fn)
-  {
-    properties_.forEach(fn);
+    GetPropertyAt(cursor_).update(direction);
   }
 
   std::size_t cursor() const
@@ -137,7 +182,7 @@ struct PropertyManager
       return cursor_;
   }
 
-  Properties properties_;
+  Properties properties_; // The property set related to the model
   std::size_t cursor_;
 };
 
@@ -147,9 +192,14 @@ template <class Model>
 class ArticCircleApplet: public HemisphereApplet
 {
 public:
+  ArticCircleApplet()
+  {
+    initLayout();
+  }
 
   virtual void tick() = 0;
   virtual void reset() {};
+  virtual void layout() {};
 
   void gfxPrintF(int x, int y, float value)
   {
@@ -161,14 +211,13 @@ public:
   template <class Property>
   Property& Get()
   {
-    return propertyManager_.properties_.Get<Property>();
+    return propertyManager_. template GetProperty<Property>();
   }
 
   template <class Property>
   void setCallback(const auto& cb)
   {
     Get<Property>().setCallback(cb);
-    cb(Get<Property>().value_);
   }
 
   template <typename Property>
@@ -178,6 +227,12 @@ public:
     {
       v = value;
     });
+  }
+
+  template <typename Property>
+  void setPosition(int x, int y)
+  {
+    propertyManager_.template SetPosition<Property>(x, y);
   }
 
   void setName(const char* name)
@@ -212,19 +267,34 @@ public:
     drawApplet();
   }
 
+  void initLayout()
+  {
+    const auto kParameterRow = 6;
+    const auto kColSpacing = 9;
+
+    for (std::size_t index = 0; index < propertyManager_.size(); index++)
+    {
+      const auto x = 32 * (index /kParameterRow);
+      const auto y = kColSpacing * (index % kParameterRow);
+      propertyManager_.SetPosition(index, x, y);
+    }
+    layout();
+  }
+
   virtual void drawApplet()
   {
     const auto cursor = propertyManager_.cursor();
-    const auto kParameterRow = 6;
+    const auto xOffset = 1;
+    const auto yOffset = 35;
+
     for (std::size_t index = 0; index < propertyManager_.size(); index++)
     {
-      const auto x = 1+ 32 * (index /kParameterRow);
-      const auto y = 15 + 8 * (index % kParameterRow);
-      const auto stringRender = propertyManager_.properties_.GetStringConverter(index).Render();
-      gfxPrint(x , y, stringRender.c_str());
+      const auto position = propertyManager_.GetPositionAt(index);
+      const auto stringRender = propertyManager_.GetStringConverterAt(index).Render();
+      gfxPrint(xOffset + position.x , yOffset + position.y, stringRender.c_str());
       if (index == cursor)
       {
-        gfxInvert(x, y-1, stringRender.length() * 6 + 1, 9);
+        gfxInvert(position.x, position.y-1, stringRender.length() * 6 + 1, 9);
       }
     }
   }
