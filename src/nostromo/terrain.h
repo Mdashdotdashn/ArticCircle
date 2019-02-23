@@ -31,20 +31,6 @@ namespace terrain
     T scalingRatio;
   };
 
-  // Simple evaluation of the terrain given the parameters
-
-  template <typename T>
-  T SEvaluateNoise(const perlin::Noise<T>& noiseSource,
-                   const T& x,
-                   const T& y,
-                   const T& z,
-                   const T& radius,
-                   const T& phasor)
-  {
-    T posX = x + radius * Sine(phasor);
-    T posY = y + radius * Cosine(phasor);
-    return noiseSource.calc(posX, posY, z);
-  }
 
 //------------------------------------------------------------------------------
 
@@ -61,8 +47,8 @@ namespace terrain
     constexpr static std::size_t kSubSampleCount = 10;
 
   public:
-    Evaluator(const perlin::Noise<T>& noiseSource)
-      : noiseSource_(noiseSource)
+    Evaluator(const perlin::Noise<T>& terrain)
+      : terrain_(terrain)
       , processingState_(ProcessingState::Done){};
 
     void Reset(const Geometry_t& geometry)
@@ -84,8 +70,11 @@ namespace terrain
     void evaluateNextStep()
     {
       const auto increment = T(0.01); // Sample 100 points
-      T value = SEvaluateNoise(
-        noiseSource_, geometry_.x, geometry_.y, geometry_.z, geometry_.radius, phasor_);
+
+      const auto posX = geometry_.x + geometry_.radius * Sine(phasor_);
+      const auto posY = geometry_.y + geometry_.radius * Cosine(phasor_);
+      const auto value = terrain_.calc(posX, posY, geometry_.z);
+
       noiseRange_.first = std::min(noiseRange_.first, value);
       noiseRange_.second = std::max(noiseRange_.second, value);
 
@@ -111,7 +100,7 @@ namespace terrain
     }
 
   private:
-    const perlin::Noise<T>& noiseSource_;
+    const perlin::Noise<T>& terrain_;
     ProcessingState processingState_;
     std::pair<T, T> noiseRange_;
     Geometry_t geometry_;
@@ -121,29 +110,14 @@ namespace terrain
 
 //------------------------------------------------------------------------------
 
-  // Evaluates the noise at the given phasor position
-  // according to the given geometry
-
-  template <typename T>
-  T SEvaluateScaledNoise(const perlin::Noise<T>& noiseSource,
-                         const Geometry<T>& geometry,
-                         const T& phasor)
-  {
-    T rawValue = SEvaluateNoise(
-      noiseSource, geometry.x, geometry.y, geometry.z, geometry.radius, phasor);
-    return (rawValue - geometry.scalingOffset) / geometry.scalingRatio;
-  }
-
-//------------------------------------------------------------------------------
-
   template <typename T>
   class Renderer
   {
     using Geometry_t = Geometry<T>;
 
   public:
-    Renderer(const perlin::Noise<T>& noiseSource)
-      : noiseSource_(noiseSource)
+    Renderer(const perlin::Noise<T>& terrain)
+      : terrain_(terrain)
       , fading_(false)
       , fadeCycleCount_(0)
       , fadeCycles_(1)
@@ -187,19 +161,32 @@ namespace terrain
 
       lastPhasor_ = phasor;
 
+      const auto evaluateScaledNoise = [this](const Geometry_t& g, const T& sx, const T& cy) -> T
+      {
+        const auto posX = g.x + g.radius * sx;
+        const auto posY = g.y + g.radius * cy;
+        const auto value = this->terrain_.calc(posX, posY, g.z);
+        return (value - g.scalingOffset) / g.scalingRatio;
+      };
+
+      const auto sx = Sine(phasor);
+      const auto sy = Cosine(phasor);
+
       if (fading_)
       {
         const T interpolation =
           (T(fadeCycles_ - fadeCycleCount_) + phasor) / T(fadeCycles_);
-        return lerp(SEvaluateScaledNoise(noiseSource_, fromGeometry_, phasor),
-                    SEvaluateScaledNoise(noiseSource_, toGeometry_, phasor), interpolation);
+
+        return lerp(evaluateScaledNoise(fromGeometry_, sx, sy),
+                    evaluateScaledNoise(toGeometry_, sx, sy),
+                    interpolation);
       }
 
-      return SEvaluateScaledNoise(noiseSource_, fromGeometry_, phasor);
+      return evaluateScaledNoise(fromGeometry_, sx, sy);
     }
 
   private:
-    const perlin::Noise<T>& noiseSource_;
+    const perlin::Noise<T>& terrain_;
 
     RampedValue<T> mixRamp_;
 
@@ -224,8 +211,8 @@ namespace terrain
 
   public:
     Oscillator()
-    : evaluator_(noiseSource_)
-    , renderer_(noiseSource_)
+    : evaluator_(terrain_)
+    , renderer_(terrain_)
     {};
 
     void setParameters(T radius, T x, T y, T z)
@@ -252,7 +239,7 @@ namespace terrain
     };
 
   private:
-    perlin::Noise<T> noiseSource_;
+    perlin::Noise<T> terrain_;
     Evaluator<T> evaluator_;
     Renderer<T> renderer_;
 
