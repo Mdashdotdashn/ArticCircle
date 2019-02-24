@@ -23,6 +23,8 @@ namespace grids
     void reset();
     void advance();
 
+    uint8_t step();
+
     uint8_t level(Selector selector, uint16_t x, uint16_t y);
 
   private:

@@ -421,4 +421,9 @@ namespace grids
 
     return int(selector) < 3 ? ReadDrumMap(step_, part, xmap, ymap) : altFn(step_, part, xmap, ymap);
   }
+
+  uint8_t Channel::step()
+  {
+    return step_;
+  }
 }

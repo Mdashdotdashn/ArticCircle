@@ -24,8 +24,20 @@ namespace NGridsChannel
 {
   struct Model
   {
-    enum class Modes
+    enum class ModesL
     {
+      BD,
+      SD,
+      HH,
+      BD_ALT,
+      SD_ALT,
+      HH_ALT,
+      COUNT
+    };
+
+    enum class ModesR
+    {
+      PERCENTAGE,
       BD,
       SD,
       HH,
@@ -48,9 +60,11 @@ namespace NGridsChannel
       Density()
       {
         setValue(0.5f);
-        setLabel("Ds");
       }
     };
+
+    struct DensityL: Density {};
+    struct DensityR: Density {};
 
     struct X: Property<int>
     {
@@ -58,6 +72,7 @@ namespace NGridsChannel
       {
         setRange(0, 255);
         setValue(128);
+        setLabel("X");
       }
     };
 
@@ -67,22 +82,30 @@ namespace NGridsChannel
       {
         setRange(0, 255);
         setValue(128);
+        setLabel("Y");
       }
     };
 
-    struct Mode: Property<Modes>
+    struct ModeL: Property<ModesL>
     {
-      Mode()
+      ModeL()
       {
-        setValue(Modes::BD);
+        setValue(ModesL::BD);
         setEnumStrings({"BD", "SD", "HH", "B-", "S-", "H-"});
       }
     };
 
-    struct ModeL: Mode{};
-    struct ModeR: Mode{};
+    struct ModeR: Property<ModesR>
+    {
+      ModeR()
+      {
+        setValue(ModesR::PERCENTAGE);
+        setEnumStrings({"% ","BD", "SD", "HH", "B-", "S-", "H-"});
+      }
+    };
 
-    using Properties = PropertySet<ModeL , ModeR , Density, X, Y>;
+
+    using Properties = PropertySet<ModeL , DensityL, ModeR, DensityR, X, Y>;
   };
 
   class Applet: public ArticCircleApplet<Model>
@@ -90,47 +113,61 @@ namespace NGridsChannel
   public:
     Applet()
     {
-      setName("Grid");
+      setName("Grids");
 
-      bind<Model::ModeL>(mode_[0]);
-      bind<Model::ModeR>(mode_[1]);
+      bind<Model::ModeL>(modeL_);
+      bind<Model::ModeR>(modeR_);
 
-      setCallback<Model::Density>([this](const float &d){
-        density_ = int(d * 255);
+      setCallback<Model::DensityL>([this](const float &d){
+        density_[0] = int(d * 255);
+      });
+
+      setCallback<Model::DensityR>([this](const float &d){
+        density_[1] = int(d * 255);
       });
 
       bind<Model::X>(x_);
       bind<Model::Y>(y_);
+
+      setPosition<Model::ModeL>(0,0);
+      setPosition<Model::DensityL>(0,9);
+      setPosition<Model::ModeR>(29,0);
+      setPosition<Model::DensityR>(29,9);
     }
 
     virtual void reset() final
     {
       channel_.reset();
-      output_[0] = output_[1] = false;
     }
 
     void processStep()
     {
-        const auto density =  constrain(density_ + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
-        const uint8_t threshold = ~density;
-
         ForEachChannel(ch)
         {
-          const auto channel = grids::Channel::Selector(mode_[ch]);
-          const auto level = channel_.level(channel, x_, y_);
-
-          if (level > threshold)
+          // special percentage mode, send the level on the second output
+          if (((ch == 1) &&(modeR_ == Model::ModesR::PERCENTAGE)))
           {
-            if (density == 255) // Output levels
+              Out(ch, Proportion(lastLevel_, 256, HEMISPHERE_MAX_CV));
+          }
+          else
+          {
+            const auto channel = (ch == 0) ? grids::Channel::Selector(modeL_) :  grids::Channel::Selector(int(modeR_) - 1);  
+            const auto density =  constrain(density_[ch] + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
+            const uint8_t threshold = ~density;
+            const auto level = channel_.level(channel, x_, y_);            
+
+            if (density_[ch] == 255) // Output levels
             {
               Out(ch, Proportion(level, 256, HEMISPHERE_MAX_CV));
             }
             else
             {
-              output_[ch] = !output_[ch];
-              GateOut(ch, output_[ch]);
-//              ClockOut(ch); // trigger
+              if (level > threshold)
+              {
+                ClockOut(ch); // trigger
+              }
             }
+            lastLevel_ = level;
           }
         }
     }
@@ -154,16 +191,17 @@ namespace NGridsChannel
     {
       ArticCircleApplet<Model>::drawApplet();
 
+  gfxPrint(32, 50, channel_.step());
       gfxSkyline();
-
-      gfxPrint(31,25, density_);
     }
 
   private:
     uint8_t x_;
     uint8_t y_;
-    uint8_t density_;
-    Model::Modes mode_[2];
+    uint8_t density_[2];
+    uint8_t lastLevel_ = 0;
+    Model::ModesL modeL_;
+    Model::ModesR modeR_;
 
     bool output_[2];
     grids::Channel channel_;

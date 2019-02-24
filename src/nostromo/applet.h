@@ -28,7 +28,6 @@ namespace detail
   struct Index<T, std::tuple<U, Types...>> {
       static const std::size_t value = 1 + Index<T, std::tuple<Types...>>::value;
   };
-
 } // detail
 
 //------------------------------------------------------------------------------
@@ -76,7 +75,7 @@ public:
   }
 
   // Index based accessor
-  IPropertyBundle& GetBundleAt(int index)
+  IPropertyBundle& GetBundle(int index)
   {
     return *bundles_[index];
   }
@@ -86,7 +85,7 @@ public:
   IPropertyBundle& GetBundle()
   {
     constexpr auto index = detail::Index<Property, std::tuple<Props...>>::value;
-    return GetBundleAt(index);
+    return GetBundle(index);
   }
 
   constexpr static std::size_t size()
@@ -111,29 +110,29 @@ struct PropertyManager
   }
 
   // Index based access
-  auto& GetBundleAt(int index)
+  auto& GetBundle(int index)
   {
-    return properties_.GetBundleAt(index);
+    return properties_.GetBundle(index);
   }
 
-  auto& GetPropertyAt(int index)
+  auto& GetProperty(int index)
   {
-    return GetBundleAt(index).GetProperty();
+    return GetBundle(index).GetProperty();
   }
 
-  auto& GetStringConverterAt(int index)
+  auto& GetStringConverter(int index)
   {
-    return GetBundleAt(index).GetStringConverter();
+    return GetBundle(index).GetStringConverter();
   }
 
-  auto& GetPositionAt(int index)
+  auto& GetPosition(int index)
   {
-    return GetBundleAt(index).GetPosition();
+    return GetBundle(index).GetPosition();
   }
 
   void SetPosition(int index, int x, int y)
   {
-    auto& position = GetPositionAt(index);
+    auto& position = GetPosition(index);
     position.x = x;
     position.y = y;
   }
@@ -149,15 +148,17 @@ struct PropertyManager
   template <typename Property>
   Property& GetProperty()
   {
-    return static_cast<Property&>(GetBundle<Property>().GetProperty());
+    auto &bundle = GetBundle<Property>();
+    auto &property = bundle.GetProperty();
+    return static_cast<Property&>(property);
   }
 
   template <typename Property>
   void SetPosition(int x, int y)
   {
-    const auto& position = GetBundle<Property>().GetPosition();
-    position.x;
-    position.y;
+    auto& position = GetBundle<Property>().GetPosition();
+    position.x = x;
+    position.y = y;
   }
 
   //
@@ -174,7 +175,7 @@ struct PropertyManager
 
   void updateCurrent(const int direction)
   {
-    GetPropertyAt(cursor_).update(direction);
+    GetProperty(cursor_).update(direction);
   }
 
   std::size_t cursor() const
@@ -278,23 +279,22 @@ public:
       const auto y = kColSpacing * (index % kParameterRow);
       propertyManager_.SetPosition(index, x, y);
     }
-    layout();
   }
 
   virtual void drawApplet()
   {
     const auto cursor = propertyManager_.cursor();
     const auto xOffset = 1;
-    const auto yOffset = 35;
+    const auto yOffset = 15;
 
     for (std::size_t index = 0; index < propertyManager_.size(); index++)
     {
-      const auto position = propertyManager_.GetPositionAt(index);
-      const auto stringRender = propertyManager_.GetStringConverterAt(index).Render();
+      const auto position = propertyManager_.GetPosition(index);
+      const auto stringRender = propertyManager_.GetStringConverter(index).Render();
       gfxPrint(xOffset + position.x , yOffset + position.y, stringRender.c_str());
       if (index == cursor)
       {
-        gfxInvert(position.x, position.y-1, stringRender.length() * 6 + 1, 9);
+        gfxInvert(xOffset + position.x, yOffset + position.y-1, stringRender.length() * 6 + 1, 9);
       }
     }
   }
