@@ -67,7 +67,7 @@ namespace NGridsChannel
     struct DensityR: Density {};
 
     struct X: Property<int>
-    {
+      {
       X()
       {
         setRange(0, 255);
@@ -148,38 +148,38 @@ namespace NGridsChannel
     {
         ForEachChannel(ch)
         {
-          const auto density =  constrain(density_[ch] + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
-          const uint8_t threshold = ~density;
+          if (((ch == 0) || (modeR_ != Model::ModesR::PERCENTAGE)))
+          {
+            const auto density =  constrain(density_[ch] + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
+            const uint8_t threshold = ~density;
 
-          // special for the percentage mode, wheree we send the level on the second output
-          if (((ch == 1) &&(modeR_ == Model::ModesR::PERCENTAGE)))
-          {
-              if (lastLevel_ > threshold)
-              {
-                Out(ch, Proportion(lastLevel_, 256, HEMISPHERE_MAX_CV));
-              }
-          }
-          else
-          {
             const auto channel = (ch == 0) ? grids::Channel::Selector(modeL_) :  grids::Channel::Selector(int(modeR_) - 1);  
             const auto level = channel_.level(channel, x_, y_);            
 
             if (density_[ch] == 255) // Output levels
             {
               Out(ch, Proportion(level, 256, HEMISPHERE_MAX_CV));
+              if (modeR_ == Model::ModesR::PERCENTAGE)
+              {
+                Out(1, Proportion(level, 256, HEMISPHERE_MAX_CV));              
+              }
             }
             else
             {
               if (level > threshold)
               {
                 ClockOut(ch); // trigger
+                // If we're using the percentage mode, sent it to output 1
+                if (modeR_ == Model::ModesR::PERCENTAGE)
+                {
+                    Out(1, Proportion(level - threshold, 256 - threshold, HEMISPHERE_MAX_CV));
+                }
               }
               else
               {
                 Out(ch, 0);
               }
             }
-            lastLevel_ = level;
           }
         }
     }
@@ -209,7 +209,6 @@ namespace NGridsChannel
     uint8_t x_;
     uint8_t y_;
     uint8_t density_[2];
-    uint8_t lastLevel_ = 0;
     Model::ModesL modeL_;
     Model::ModesR modeR_;
 
