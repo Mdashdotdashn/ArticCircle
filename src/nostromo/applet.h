@@ -41,6 +41,7 @@ public:
   virtual detail::IStringConverter& getStringConverter() = 0;
 
   Position position;
+  bool visibility = true;
 };
 
 template <class Property>
@@ -73,6 +74,11 @@ namespace bundle
   {
     auto& property = bundle.getProperty();
     property.update(direction);
+  }
+
+  void setVisibility(IPropertyBundle& bundle, bool visible)
+  {
+    bundle.visibility = visible;
   }
 }
 
@@ -145,7 +151,18 @@ struct PropertyManager
 
   void next()
   {
-    cursor_ = (cursor_ + 1) % size();
+    const auto current = cursor_;
+    const auto incCursor = [this] {
+      this->cursor_ = (this->cursor_ + 1) % this->size();
+    };
+
+    incCursor();
+    while (cursor_ != current)
+    {
+      auto& bundle = getBundle(cursor_);
+      if (bundle.visibility) { break; }
+      incCursor();
+    }
   }
 
   void updateCurrent(const int direction)
@@ -176,7 +193,6 @@ public:
 
   virtual void tick() = 0;
   virtual void reset() {};
-  virtual void layout() {};
 
   void gfxPrintF(int x, int y, float value)
   {
@@ -218,6 +234,13 @@ public:
   {
     auto& bundle = getBundle<Property>();
     bundle::setPosition(bundle, x, y);
+  }
+
+  template <typename Property>
+  void setVisibility(bool visible)
+  {
+    auto& bundle = getBundle<Property>();
+    bundle::setVisibility(bundle, visible);
   }
 
   void setName(const char* name)
@@ -275,13 +298,16 @@ public:
     for (std::size_t index = 0; index < propertyManager_.size(); index++)
     {
       auto& bundle = propertyManager_.getBundle(index);
-      const auto stringRender = bundle.getStringConverter().Render();
-      const auto x = xOffset + bundle.position.x;
-      const auto y = yOffset + bundle.position.y;
-      gfxPrint(x , y, stringRender.c_str());
-      if (index == cursor)
+      if (bundle.visibility)
       {
-        gfxInvert(x, y - 1, stringRender.length() * 6 + 1, 9);
+        const auto stringRender = bundle.getStringConverter().Render();
+        const auto x = xOffset + bundle.position.x;
+        const auto y = yOffset + bundle.position.y;
+        gfxPrint(x , y, stringRender.c_str());
+        if (index == cursor)
+        {
+          gfxInvert(x, y - 1, stringRender.length() * 6 + 1, 9);
+        }        
       }
     }
   }

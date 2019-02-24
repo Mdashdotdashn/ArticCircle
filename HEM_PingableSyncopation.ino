@@ -63,10 +63,6 @@ namespace NPingableSyncopation
       bind<Model::Offset>(offset_);
     }
 
-    void layout() final
-    {  
-    }
-    
     void reset() final
     {
       phaser_.reset(kSampleRate);

@@ -116,7 +116,11 @@ namespace NGridsChannel
       setName("Grids");
 
       bind<Model::ModeL>(modeL_);
-      bind<Model::ModeR>(modeR_);
+      
+      setCallback<Model::ModeR>([this](const auto& m) {
+        modeR_ = m;
+        this->setVisibility<Model::DensityR>(m != Model::ModesR::PERCENTAGE);
+      });
 
       setCallback<Model::DensityL>([this](const float &d){
         density_[0] = int(d * 255);
@@ -144,16 +148,20 @@ namespace NGridsChannel
     {
         ForEachChannel(ch)
         {
-          // special percentage mode, send the level on the second output
+          const auto density =  constrain(density_[ch] + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
+          const uint8_t threshold = ~density;
+
+          // special for the percentage mode, wheree we send the level on the second output
           if (((ch == 1) &&(modeR_ == Model::ModesR::PERCENTAGE)))
           {
-              Out(ch, Proportion(lastLevel_, 256, HEMISPHERE_MAX_CV));
+              if (lastLevel_ > threshold)
+              {
+                Out(ch, Proportion(lastLevel_, 256, HEMISPHERE_MAX_CV));
+              }
           }
           else
           {
             const auto channel = (ch == 0) ? grids::Channel::Selector(modeL_) :  grids::Channel::Selector(int(modeR_) - 1);  
-            const auto density =  constrain(density_[ch] + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
-            const uint8_t threshold = ~density;
             const auto level = channel_.level(channel, x_, y_);            
 
             if (density_[ch] == 255) // Output levels
@@ -165,6 +173,10 @@ namespace NGridsChannel
               if (level > threshold)
               {
                 ClockOut(ch); // trigger
+              }
+              else
+              {
+                Out(ch, 0);
               }
             }
             lastLevel_ = level;
