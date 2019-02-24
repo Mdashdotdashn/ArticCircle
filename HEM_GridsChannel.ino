@@ -190,8 +190,6 @@ namespace NGridsChannel
     void drawApplet() final
     {
       ArticCircleApplet<Model>::drawApplet();
-
-  gfxPrint(32, 50, channel_.step());
       gfxSkyline();
     }
 

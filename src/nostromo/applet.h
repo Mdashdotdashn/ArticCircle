@@ -32,14 +32,15 @@ namespace detail
 
 //------------------------------------------------------------------------------
 
-class IPropertyBundle
+struct IPropertyBundle
 {
 public:
   using Position = struct { int x; int y;};
 
-  virtual detail::IProperty& GetProperty() = 0;
-  virtual detail::IStringConverter& GetStringConverter() = 0;
-  virtual Position& GetPosition() = 0;
+  virtual detail::IProperty& getProperty() = 0;
+  virtual detail::IStringConverter& getStringConverter() = 0;
+
+  Position position;
 };
 
 template <class Property>
@@ -50,16 +51,30 @@ public:
   : stringConverter_(property_)
   {}
 
-  detail::IProperty& GetProperty() override { return property_;}
-  detail::IStringConverter& GetStringConverter() override { return stringConverter_;}
-  Position& GetPosition() { return position_;}
+  detail::IProperty& getProperty() override { return property_;}
+  detail::IStringConverter& getStringConverter() override { return stringConverter_;}
 
 private:
   Property property_;
   using Converter = string_converter_t<Property>;
   Converter stringConverter_;
-  Position position_;
 };
+
+
+namespace bundle
+{
+  void setPosition(IPropertyBundle& bundle, int x, int y)
+  {
+    bundle.position.x = x;
+    bundle.position.y = y;
+  }
+
+  void update(IPropertyBundle& bundle, int direction)
+  {
+    auto& property = bundle.getProperty();
+    property.update(direction);
+  }
+}
 
 //------------------------------------------------------------------------------
 
@@ -75,17 +90,17 @@ public:
   }
 
   // Index based accessor
-  IPropertyBundle& GetBundle(int index)
+  IPropertyBundle& getBundle(int index)
   {
     return *bundles_[index];
   }
 
   // Property based accessor
   template <class Property>
-  IPropertyBundle& GetBundle()
+  IPropertyBundle& getBundle()
   {
     constexpr auto index = detail::Index<Property, std::tuple<Props...>>::value;
-    return GetBundle(index);
+    return getBundle(index);
   }
 
   constexpr static std::size_t size()
@@ -110,58 +125,18 @@ struct PropertyManager
   }
 
   // Index based access
-  auto& GetBundle(int index)
+  auto& getBundle(int index)
   {
-    return properties_.GetBundle(index);
-  }
-
-  auto& GetProperty(int index)
-  {
-    return GetBundle(index).GetProperty();
-  }
-
-  auto& GetStringConverter(int index)
-  {
-    return GetBundle(index).GetStringConverter();
-  }
-
-  auto& GetPosition(int index)
-  {
-    return GetBundle(index).GetPosition();
-  }
-
-  void SetPosition(int index, int x, int y)
-  {
-    auto& position = GetPosition(index);
-    position.x = x;
-    position.y = y;
+    return properties_.getBundle(index);
   }
 
   // Type based access
 
   template <typename Property>
-  auto& GetBundle()
+  auto& getBundle()
   {
-    return properties_.template GetBundle<Property>();
+    return properties_.template getBundle<Property>();
   }
-
-  template <typename Property>
-  Property& GetProperty()
-  {
-    auto &bundle = GetBundle<Property>();
-    auto &property = bundle.GetProperty();
-    return static_cast<Property&>(property);
-  }
-
-  template <typename Property>
-  void SetPosition(int x, int y)
-  {
-    auto& position = GetBundle<Property>().GetPosition();
-    position.x = x;
-    position.y = y;
-  }
-
-  //
 
   inline auto size() const
   {
@@ -175,7 +150,8 @@ struct PropertyManager
 
   void updateCurrent(const int direction)
   {
-    GetProperty(cursor_).update(direction);
+    auto& bundle = getBundle(cursor_);
+    bundle::update(bundle, direction);
   }
 
   std::size_t cursor() const
@@ -210,15 +186,22 @@ public:
   }
 
   template <class Property>
-  Property& Get()
+  IPropertyBundle& getBundle()
   {
-    return propertyManager_. template GetProperty<Property>();
+    return propertyManager_. template getBundle<Property>();
+  }
+
+  template <class Property>
+  Property& getProperty()
+  {
+    auto& bundle = getBundle<Property>();
+    return static_cast<Property&>(bundle.getProperty());
   }
 
   template <class Property>
   void setCallback(const auto& cb)
   {
-    Get<Property>().setCallback(cb);
+    getProperty<Property>().setCallback(cb);
   }
 
   template <typename Property>
@@ -233,7 +216,8 @@ public:
   template <typename Property>
   void setPosition(int x, int y)
   {
-    propertyManager_.template SetPosition<Property>(x, y);
+    auto& bundle = getBundle<Property>();
+    bundle::setPosition(bundle, x, y);
   }
 
   void setName(const char* name)
@@ -277,7 +261,8 @@ public:
     {
       const auto x = 32 * (index /kParameterRow);
       const auto y = kColSpacing * (index % kParameterRow);
-      propertyManager_.SetPosition(index, x, y);
+      auto& bundle = propertyManager_.getBundle(index);
+      bundle::setPosition(bundle, x, y);
     }
   }
 
@@ -289,12 +274,14 @@ public:
 
     for (std::size_t index = 0; index < propertyManager_.size(); index++)
     {
-      const auto position = propertyManager_.GetPosition(index);
-      const auto stringRender = propertyManager_.GetStringConverter(index).Render();
-      gfxPrint(xOffset + position.x , yOffset + position.y, stringRender.c_str());
+      auto& bundle = propertyManager_.getBundle(index);
+      const auto stringRender = bundle.getStringConverter().Render();
+      const auto x = xOffset + bundle.position.x;
+      const auto y = yOffset + bundle.position.y;
+      gfxPrint(x , y, stringRender.c_str());
       if (index == cursor)
       {
-        gfxInvert(xOffset + position.x, yOffset + position.y-1, stringRender.length() * 6 + 1, 9);
+        gfxInvert(x, y - 1, stringRender.length() * 6 + 1, 9);
       }
     }
   }

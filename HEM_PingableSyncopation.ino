@@ -54,21 +54,25 @@ namespace NPingableSyncopation
       //       123456789
       setName("Ping Sync");
 
-      auto& offsetProperty = this->Get<Model::Offset>();
-      setCallback<Model::Denominator>([this, &offsetProperty](const int v){
-        this->divider_.setAmount(v);
-        offsetProperty.setRange(1, v - 1);
-      });
+//      auto& offsetProperty = this->Get<Model::Offset>();
+//      setCallback<Model::Denominator>([this, &offsetProperty](const int v){
+//        this->divider_.setAmount(v);
+//        offsetProperty.setRange(1, v - 1);
+//      });
 
       bind<Model::Offset>(offset_);
     }
 
-    virtual void reset() final
+    void layout() final
+    {  
+    }
+    
+    void reset() final
     {
       phaser_.reset(kSampleRate);
     }
 
-    virtual void tick() final
+    void tick() final
     {
       const bool gate = Gate(0);
       if (gate && (lastGate_ != gate))
