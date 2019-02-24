@@ -237,6 +237,12 @@ public:
   }
 
   template <typename Property>
+  void setRange(const typename Property::value_t& min, const typename Property::value_t& max)
+  {
+    getProperty<Property>().setRange(min, max);
+  }
+
+  template <typename Property>
   void setVisibility(bool visible)
   {
     auto& bundle = getBundle<Property>();
@@ -307,7 +313,7 @@ public:
         if (index == cursor)
         {
           gfxInvert(x, y - 1, stringRender.length() * 6 + 1, 9);
-        }        
+        }
       }
     }
   }
