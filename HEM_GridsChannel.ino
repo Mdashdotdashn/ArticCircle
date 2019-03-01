@@ -47,14 +47,6 @@ namespace NGridsChannel
       COUNT
     };
 
-    struct PercentageProperty : public Property<float>
-    {
-      PercentageProperty()
-      {
-        setRange(0.f, 1.f);
-      }
-    };
-
     struct Density: PercentageProperty
     {
       Density()
@@ -116,7 +108,7 @@ namespace NGridsChannel
       setName("Grids");
 
       bind<Model::ModeL>(modeL_);
-      
+
       setCallback<Model::ModeR>([this](const auto& m) {
         modeR_ = m;
         this->setVisibility<Model::DensityR>(m != Model::ModesR::PERCENTAGE);
@@ -153,15 +145,15 @@ namespace NGridsChannel
             const auto density =  constrain(density_[ch] + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
             const uint8_t threshold = ~density;
 
-            const auto channel = (ch == 0) ? grids::Channel::Selector(modeL_) :  grids::Channel::Selector(int(modeR_) - 1);  
-            const auto level = channel_.level(channel, x_, y_);            
+            const auto channel = (ch == 0) ? grids::Channel::Selector(modeL_) :  grids::Channel::Selector(int(modeR_) - 1);
+            const auto level = channel_.level(channel, x_, y_);
 
             if (density_[ch] == 255) // Output levels
             {
               Out(ch, Proportion(level, 256, HEMISPHERE_MAX_CV));
               if (modeR_ == Model::ModesR::PERCENTAGE)
               {
-                Out(1, Proportion(level, 256, HEMISPHERE_MAX_CV));              
+                Out(1, Proportion(level, 256, HEMISPHERE_MAX_CV));
               }
             }
             else

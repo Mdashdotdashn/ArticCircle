@@ -38,3 +38,13 @@ struct ScaleProperty: Property<int>
   ScaleProperty();
   using StringConverter = ScaleStringConverter;
 };
+
+//------------------------------------------------------------------------------
+
+struct PercentageProperty : public Property<float>
+{
+  PercentageProperty()
+  {
+    setRange(0.f, 1.f);
+  }
+};
