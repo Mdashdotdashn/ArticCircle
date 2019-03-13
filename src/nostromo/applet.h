@@ -2,6 +2,7 @@
 
 #include "property.h"
 #include "string_conversion.h"
+#include "ui/trigger_display.h"
 
 constexpr static float kSampleRate = float(16667);
 
@@ -263,6 +264,10 @@ public:
 /* Run during the interrupt service routine, 16667 times per second */
   void Controller()
   {
+    ForEachChannel(ch)
+    {
+      sizer_[ch].feed(Gate(ch));
+    }
     tick();
   }
 
@@ -272,10 +277,11 @@ public:
 
     ForEachChannel(ch)
     {
-      if (Gate(ch))
+      const auto size = sizer_[ch].updateSize();
+      if (size > 0)
       {
         const auto offset = 5 * ch;
-        gfxRect(58, offset, 4, 4);
+        gfxRect(58, offset, size, size);
       }
     }
     drawApplet();
@@ -364,4 +370,5 @@ protected:
 
   PropertyManager<Model> propertyManager_;
   const char *name_ = "unknown";
+  TriggerSizer<4> sizer_[2];
  };
