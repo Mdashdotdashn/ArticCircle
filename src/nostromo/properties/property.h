@@ -23,6 +23,7 @@ namespace detail
     void setLabel(const String& label) {
       label_ = label;
     };
+
     void setCallback(const Callback& callback)
     {
       callback_ = callback;
