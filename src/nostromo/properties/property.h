@@ -1,7 +1,7 @@
 #pragma once
 
 #include "estd.h"
-#include "math.h"
+#include "../math.h"
 
 #include <utility>
 #include <memory>

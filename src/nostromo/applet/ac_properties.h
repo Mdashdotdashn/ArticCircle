@@ -1,6 +1,6 @@
 #pragma once
 
-#include "string_conversion.h"
+#include "../properties/string_conversion.h"
 
 namespace detail
 {

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "property.h"
-#include "string_conversion.h"
-#include "ui/trigger_display.h"
+#include "../properties/property.h"
+#include "../properties/string_conversion.h"
+#include "../ui/trigger_display.h"
 
 constexpr static float kSampleRate = float(16667);
 

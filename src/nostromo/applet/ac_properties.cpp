@@ -1,7 +1,7 @@
 #include "ac_properties.h"
 
-#include "../../OC_scales.h"
-#include "../../OC_strings.h"
+#include "../../../OC_scales.h"
+#include "../../../OC_strings.h"
 
 namespace detail
 {
