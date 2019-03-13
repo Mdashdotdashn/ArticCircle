@@ -24,31 +24,40 @@ namespace NTriggerToGate
 {
   struct Model
   {
-    struct Denominator: Property<int>
+    struct Size: Property<int>
     {
-      Denominator()
+      Size()
       {
         setRange(2,24);
-        setValue(2);        
       }
     };
 
-    struct Numerator: Property<int>
+    struct PulseWidth: PercentageProperty
     {
-      Numerator()
+      PulseWidth()
       {
-        setRange(1,23);
-        setValue(1);        
+        setValue(0.33);
       }
     };
 
-    struct DenominatorL: Denominator {};
-    struct DenominatorR: Denominator {};
+    struct SizeL: Size {
+      SizeL()
+      {
+        setValue(8);
+      }
+    };
 
-    struct NumeratorL: Numerator {};
-    struct NumeratorR: Numerator {};
+    struct SizeR: Size {
+      SizeR()
+      {
+        setValue(3);
+      }
+    };
 
-    using Properties = PropertySet<DenominatorL, NumeratorL, DenominatorR, NumeratorR>;
+    struct PulseWidthL: PulseWidth {};
+    struct PulseWidthR: PulseWidth {};
+
+    using Properties = PropertySet<SizeL, SizeR, PulseWidthL>;
   };
 
 
@@ -60,37 +69,69 @@ namespace NTriggerToGate
       //       123456789
       setName("Tr.2Gate");
 
-      setCallback<Model::DenominatorL>([this](const auto& value)
+      setCallback<Model::SizeL>([this](const auto& value)
       {
           denominator_[0] = value;
-          this->setRange<Model::NumeratorL>(1, value -1);
+          this->updateNumerators();
       });
 
-      setCallback<Model::DenominatorR>([this](const auto& value)
+      setCallback<Model::SizeR>([this](const auto& value)
       {
           denominator_[1] = value;
-          this->setRange<Model::NumeratorR>(1, value -1);
+          this->updateNumerators();
       });
-      
-      bind<Model::NumeratorL>(numerator_[0]);
-      bind<Model::NumeratorR>(numerator_[1]);
+
+      setCallback<Model::PulseWidthL>([this](const auto& value)
+      {
+          pulseWidth_[0] = value;
+          this->updateNumerators();
+      });
+/*
+      setCallback<Model::PulseWidthR>([this](const auto& value)
+      {
+          pulseWidth_[1] = value;
+          this->updateNumerators();
+      */
     }
 
     virtual void reset() final {
-      count_ = 0;
+      counter_ = 0;
+      state_[0] = state_[1] = false;
+      outState_[0] = outState_[1] = false;
     };
 
     virtual void tick() final
     {
-      if (Clock(0))
+      const auto gate = Gate(0);
+      if (gate != lastGate_)
       {
         ForEachChannel(ch)
         {
-          const auto cycle = count_ % denominator_[ch];
-          const auto high = cycle < numerator_[ch];
-          GateOut(ch, high);
+          const auto cycle = counter_ % denominator_[ch];
+          const auto state = cycle < numerator_[ch];
+          if (state == gate)
+          {
+            state_[ch] = state;
+          }
         }
-        count_++;
+
+        bool output[2];
+        output[0] = state_[0] ^ state_[1];
+        output[1] = state_[0] ^ !state_[1];
+
+        ForEachChannel(ch)
+        {
+//          if (gate)
+//          {
+            if (output[ch]&&!outState_[ch])
+            {
+              ClockOut(ch);
+            }
+//          }
+          outState_[ch] = output[ch];
+        }
+        if (gate) counter_++;
+        lastGate_ = gate;
       }
     }
 
@@ -98,12 +139,34 @@ namespace NTriggerToGate
     {
       ArticCircleApplet<NTriggerToGate::Model>::drawApplet();
       gfxSkyline();
+      gfxPrint(32,16, numerator_[0]);
+      gfxPrint(32,27, numerator_[1]);
+      gfxPrint(52,16, state_[0]);
+      gfxPrint(52,27, state_[1]);
+      gfxPrint(52,38, counter_);
     }
 
+    void updateNumerators()
+    {
+      const auto calcNumerator= [](const int denominator, const float pulseWidth)
+      {
+        const auto numerator = int(std::round(denominator * pulseWidth));
+        return std::max(std::min(numerator, denominator -1), 1);
+      };
+      numerator_[0] = calcNumerator(denominator_[0], pulseWidth_[0]);
+      const auto pw2 = pulseWidth_[0] > 0.5 ? pulseWidth_[0] * 0.666667f : 1 - pulseWidth_[0];
+      numerator_[1] = calcNumerator(denominator_[1], pw2);
+    }
   private:
     int numerator_[2];
     int denominator_[2];
-    std::size_t count_;
+    float pulseWidth_[2];
+
+    bool state_[2];
+    std::size_t counter_;
+
+    bool outState_[2];
+    bool lastGate_ = false;
   };
 
   Applet instance_[2];
