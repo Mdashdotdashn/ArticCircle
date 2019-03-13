@@ -55,7 +55,7 @@ namespace detail
   private:
     const Property<T>& property_;
   };
-}
+} // detail
 
 //------------------------------------------------------------------------------
 

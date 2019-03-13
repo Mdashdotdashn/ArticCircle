@@ -1,7 +1,8 @@
 #pragma once
 
-#include "string_conversion.h"
 #include "property.h"
+#include "string_conversion.h"
+#include "value_conversion.h"
 
 //------------------------------------------------------------------------------
 
@@ -12,6 +13,7 @@ public:
 
   virtual detail::IProperty& getProperty() = 0;
   virtual detail::IStringConverter& getStringConverter() = 0;
+  virtual detail::IValueConverter& getValueConverter() = 0;
 
   Position position;
   bool visibility = true;
@@ -23,15 +25,19 @@ class PropertyBundle: public IPropertyBundle
 public:
   PropertyBundle()
   : stringConverter_(property_)
+  , valueConverter_(property_)
   {}
 
   detail::IProperty& getProperty() override { return property_;}
   detail::IStringConverter& getStringConverter() override { return stringConverter_;}
+  detail::IValueConverter& getValueConverter() override { return valueConverter_;}
 
 private:
   Property property_;
-  using Converter = string_converter_t<Property>;
-  Converter stringConverter_;
+  using StringConverter = string_converter_t<Property>;
+  using ValueConverter = value_converter_t<Property>;
+  StringConverter stringConverter_;
+  ValueConverter valueConverter_;
 };
 
 
