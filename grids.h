@@ -12,10 +12,7 @@ namespace grids
     {
       BD,
       SD,
-      HH,
-      BD_ALT,
-      SD_ALT,
-      HH_ALT
+      HH
     };
 
     Channel();

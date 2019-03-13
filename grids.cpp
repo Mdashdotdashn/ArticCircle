@@ -412,14 +412,7 @@ namespace grids
     uint16_t xmap = x % 256;
     uint16_t ymap = y % 256;
     int part = int(selector) %3;
-
-    const auto altFn = [](uint8_t s, uint8_t p, uint8_t x, uint8_t y) {
-      const auto altX = (x + 128) % 256;
-      const auto altY =  (y + 128) % 256;
-      return std::abs(ReadDrumMap(s, p, x, y)- ReadDrumMap(s, p, altX, altY));
-    };
-
-    return int(selector) < 3 ? ReadDrumMap(step_, part, xmap, ymap) : altFn(step_, part, xmap, ymap);
+    return ReadDrumMap(step_, part, xmap, ymap);
   }
 
   uint8_t Channel::step()

@@ -32,6 +32,9 @@ namespace NGridsChannel
       BD_ALT,
       SD_ALT,
       HH_ALT,
+      BD_HALF,
+      SD_HALF,
+      HH_HALF,
       COUNT
     };
 
@@ -44,6 +47,9 @@ namespace NGridsChannel
       BD_ALT,
       SD_ALT,
       HH_ALT,
+      BD_HALF,
+      SD_HALF,
+      HH_HALF,
       COUNT
     };
 
@@ -83,7 +89,7 @@ namespace NGridsChannel
       ModeL()
       {
         setValue(ModesL::BD);
-        setEnumStrings({"BD", "SD", "HH", "B-", "S-", "H-"});
+        setEnumStrings({"BD", "SD", "HH", "B-", "S-", "H-", "B/", "S/", "H/"});
       }
     };
 
@@ -92,13 +98,33 @@ namespace NGridsChannel
       ModeR()
       {
         setValue(ModesR::PERCENTAGE);
-        setEnumStrings({"% ","BD", "SD", "HH", "B-", "S-", "H-"});
+        setEnumStrings({"% ","BD", "SD", "HH","B-", "S-", "H-", "B/", "S/", "H/"});
       }
     };
 
 
     using Properties = PropertySet<ModeL , DensityL, ModeR, DensityR, X, Y>;
   };
+
+  namespace detail
+  {
+    // This one uses standard grids value
+    uint8_t calcStandardLevel(grids::Channel& channel, const grids::Channel::Selector selector, const uint8_t x ,const uint8_t y)
+    {
+      return channel.level(selector, x, y);
+    }
+
+    // this one returns the difference between two points located at different place on the map
+    uint8_t calcAlternateLevel(grids::Channel& channel, const grids::Channel::Selector selector, const uint8_t x ,const uint8_t y)
+    {
+      const auto level1 = channel.level(selector, x, y);
+
+      const auto altX = (x + 128) % 256;
+      const auto altY =  (y + 128) % 256;
+      const auto level2 = channel.level(selector, altX, altY);
+      return (level2 > level1) ? (level2 - level1) : (level1 - level2);
+    }
+  }
 
   class Applet: public ArticCircleApplet<Model>
   {
@@ -107,11 +133,12 @@ namespace NGridsChannel
     {
       setName("Grids");
 
-      bind<Model::ModeL>(modeL_);
+      setCallback<Model::ModeL>([this](const auto& m) {
+        this->updateLeftMode(m);
+      });
 
       setCallback<Model::ModeR>([this](const auto& m) {
-        modeR_ = m;
-        this->setVisibility<Model::DensityR>(m != Model::ModesR::PERCENTAGE);
+        this->updateRightMode(m);
       });
 
       setCallback<Model::DensityL>([this](const float &d){
@@ -129,40 +156,52 @@ namespace NGridsChannel
       setPosition<Model::DensityL>(0,9);
       setPosition<Model::ModeR>(29,0);
       setPosition<Model::DensityR>(29,9);
+
+      setPosition<Model::X>(12,20);
+      setPosition<Model::Y>(12,29);
     }
 
     virtual void reset() final
     {
       channel_.reset();
+      flopState_[0] = flopState_[1] = false;
     }
 
     void processStep()
     {
         ForEachChannel(ch)
         {
-          if (((ch == 0) || (modeR_ != Model::ModesR::PERCENTAGE)))
+          if ((ch == 0) || (!percentageOnRight_))
           {
             const auto density =  constrain(density_[ch] + Proportion(DetentedIn(0), HEMISPHERE_MAX_CV, 256), 0, 256);
             const uint8_t threshold = ~density;
 
-            const auto channel = (ch == 0) ? grids::Channel::Selector(modeL_) :  grids::Channel::Selector(int(modeR_) - 1);
-            const auto level = channel_.level(channel, x_, y_);
+            const auto level =  (processor_[ch]) ? processor_[ch](channel_, selector_[ch], x_, y_) : 0;
 
             if (density_[ch] == 255) // Output levels
             {
               Out(ch, Proportion(level, 256, HEMISPHERE_MAX_CV));
-              if (modeR_ == Model::ModesR::PERCENTAGE)
+              if (percentageOnRight_)
               {
                 Out(1, Proportion(level, 256, HEMISPHERE_MAX_CV));
               }
             }
             else
             {
-              if (level > threshold)
+              bool trigger = level > threshold;
+              if (flipFlopOutput_[ch])
+              {
+                flopState_[ch] = !flopState_[ch];
+                trigger &= flopState_[ch];
+              }
+
+              sizer_[ch].feed(trigger);
+
+              if (trigger)
               {
                 ClockOut(ch); // trigger
                 // If we're using the percentage mode, sent it to output 1
-                if (modeR_ == Model::ModesR::PERCENTAGE)
+                if (percentageOnRight_)
                 {
                     Out(1, Proportion(level - threshold, 256 - threshold, HEMISPHERE_MAX_CV));
                 }
@@ -194,18 +233,72 @@ namespace NGridsChannel
     void drawApplet() final
     {
       ArticCircleApplet<Model>::drawApplet();
-      gfxSkyline();
+      ForEachChannel(ch)
+      {
+        const auto size = sizer_[ch].updateSize();
+        if (size > 0)
+        {
+          const auto offset = 32 * ch;
+          gfxRect(offset + 2, 38, 20, 20);
+        }
+      }
+    }
+
+    void updateLeftMode(Model::ModesL m)
+    {
+      int channel = int(m) % 3;
+      selector_[0] = grids::Channel::Selector(channel);
+
+      switch(m)
+      {
+        case Model::ModesL::BD_ALT:
+        case Model::ModesL::SD_ALT:
+        case Model::ModesL::HH_ALT:
+          processor_[0] =  detail::calcAlternateLevel;
+          break;
+        default:
+          processor_[0] =  detail::calcStandardLevel;
+      }
+      flipFlopOutput_[0] = m > Model::ModesL::HH_ALT;
+    }
+
+    void updateRightMode(Model::ModesR m)
+    {
+      int channel = (int(m) - 1) % 3;
+      selector_[1] = grids::Channel::Selector(channel);
+
+      switch(m)
+      {
+        case Model::ModesR::BD_ALT:
+        case Model::ModesR::SD_ALT:
+        case Model::ModesR::HH_ALT:
+          processor_[1] =  detail::calcAlternateLevel;
+          break;
+        default:
+          processor_[1] =  detail::calcStandardLevel;
+      }
+
+      percentageOnRight_ = (m == Model::ModesR::PERCENTAGE);
+      flipFlopOutput_[1] = m > Model::ModesR::HH_ALT;
+
+      this->setVisibility<Model::DensityR>(m != Model::ModesR::PERCENTAGE);
     }
 
   private:
     uint8_t x_;
     uint8_t y_;
     uint8_t density_[2];
-    Model::ModesL modeL_;
-    Model::ModesR modeR_;
+    grids::Channel::Selector selector_[2];
 
-    bool output_[2];
+    using ProcessorFn = std::function<uint8_t(grids::Channel&, const grids::Channel::Selector, const uint8_t,const uint8_t)>;
+    ProcessorFn processor_[2];
+
+    bool percentageOnRight_;
+    bool flipFlopOutput_[2];
+    bool flopState_[2];
     grids::Channel channel_;
+
+    TriggerSizer<16, 24> sizer_[2];
   };
 
   Applet instance_[2];
