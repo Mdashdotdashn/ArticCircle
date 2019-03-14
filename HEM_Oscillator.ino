@@ -35,8 +35,11 @@ namespace NOscillator
       Decay()
       {
         setValue(0.22f);
-        setRange(0.01f, 5.f);
+        setRange(0.01f, 5.f, 0.02f);
+        setExponentialScaling(3.f);
       }
+
+      using ValueConverter = ExponentialValueConverter;
     };
 
     using RootNote = RootNoteProperty;

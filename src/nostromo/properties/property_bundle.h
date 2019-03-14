@@ -51,8 +51,8 @@ namespace bundle
 
   void update(IPropertyBundle& bundle, int direction)
   {
-    auto& property = bundle.getProperty();
-    property.update(direction);
+    auto& converter = bundle.getValueConverter();
+    converter.update(direction);
   }
 
   void setVisibility(IPropertyBundle& bundle, bool visible)

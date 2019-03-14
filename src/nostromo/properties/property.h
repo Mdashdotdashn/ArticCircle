@@ -8,10 +8,7 @@
 
 namespace detail
 {
-  struct IProperty
-  {
-      virtual void update(int direction) {};
-  };
+  struct IProperty {};
 
   template <typename T>
   struct PropertyBase : IProperty
@@ -19,8 +16,14 @@ namespace detail
     using value_t = T;
     using Callback = std::function<void(const T&)>;
 
-    void setValue(T value) { value_ = std::move(value); }
-    void setLabel(const String& label) {
+    void setValue(T value)
+    {
+       value_ = std::move(value);
+       triggerCallback();
+    }
+
+    void setLabel(const String& label)
+    {
       label_ = label;
     };
 
@@ -49,12 +52,6 @@ struct Property;
 template <>
 struct Property<int, void> : detail::PropertyBase<int>
 {
-  void update(int direction) override
-  {
-    value_ = clamp(value_ + direction, min_, max_);
-    triggerCallback();
-  }
-
   void setRange(int min, int max)
   {
     min_ = min;
@@ -72,12 +69,6 @@ struct Property<int, void> : detail::PropertyBase<int>
 template <>
 struct Property<float, void>: detail::PropertyBase<float>
 {
-  void update(int direction) override
-  {
-    value_ = clamp(value_ + float(direction) * increment_, min_, max_);
-    triggerCallback();
-  }
-
   void setRange(float min, float max,float increment = 0.f)
   {
     min_ = min;
@@ -87,9 +78,15 @@ struct Property<float, void>: detail::PropertyBase<float>
     triggerCallback();
   }
 
+  void setExponentialScaling(const float scaling)
+  {
+    scaling_ = scaling;
+  }
+
   float min_ = 0.f;
   float max_ = 1.f;
   float increment_= 1.f / 50.f;
+  float scaling_ = 1.f;
 };
 
 //------------------------------------------------------------------------------
@@ -108,12 +105,6 @@ struct Property<T, estd::EnableIfEnum<T>> : detail::PropertyBase<T>
   void setEnumStrings(const NameStore& strings)
   {
     enumStrings_ = strings;
-  }
-
-  void update(int direction) override
-  {
-    detail::PropertyBase<T>::value_ = T((int(detail::PropertyBase<T>::value_) + direction + size) % size);
-    detail::PropertyBase<T>::triggerCallback();
   }
 
   NameStore enumStrings_;
