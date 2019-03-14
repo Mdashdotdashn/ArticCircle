@@ -71,8 +71,9 @@ namespace terrain
     {
       const auto increment = T(0.01); // Sample 100 points
 
-      const auto posX = geometry_.x + geometry_.radius * Sine(phasor_);
-      const auto posY = geometry_.y + geometry_.radius * Cosine(phasor_);
+      const auto sinCos = quadraticSinCos(phasor_);
+      const auto posX = geometry_.x + geometry_.radius * sinCos.first;
+      const auto posY = geometry_.y + geometry_.radius * sinCos.second;
       const auto value = terrain_.calc(posX, posY, geometry_.z);
 
       noiseRange_.first = std::min(noiseRange_.first, value);

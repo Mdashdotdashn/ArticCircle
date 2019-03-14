@@ -58,6 +58,47 @@ T quadraticSine(const T& x)
   }
 }
 
+template <typename T>
+std::pair<T, T> quadraticSinCos(const T& x)
+{
+  const auto evaluatorFn = [](const T& a)
+  {
+    const auto c = T(sqrt(2.) / 2.);
+    return (T(2) - T(4) * c) *a *a + c;
+  };
+
+  if (x < T(0.5))
+  {
+    if (x < T(0.25))
+    {
+      const auto a = (x - T(0.25 / 2.)) * T(4);
+      const auto t = evaluatorFn(a);
+      return std::make_pair<T, T>(t + a, t - a);
+    }
+    else
+    {
+      const auto a = (x - T(0.25 * 3. / 2.)) * T(-4);
+      const auto t = evaluatorFn(a);
+      return std::make_pair<T, T>(t + a, a - t);
+    }
+  }
+  else
+  {
+    if (x < T(0.75))
+    {
+      const auto a = (x - T(0.5 + 0.25 / 2.)) * T(4);
+      const auto t = evaluatorFn(a);
+      return std::make_pair<T, T>(-t - a, a - t);
+    }
+    else
+    {
+      const auto a = (x - T(0.5 + 0.25 * 3. / 2.)) * T(-4);
+      const auto t = evaluatorFn(a);
+      return std::make_pair<T, T>(- t - a, t - a);
+    }
+  }
+}
+
 //------------------------------------------------------------------------------
 
 static inline float calcSlewCoeff(uint32_t sampleCount, float noiseFloor = 1e-4f)
