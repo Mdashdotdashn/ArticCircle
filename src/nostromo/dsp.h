@@ -29,8 +29,33 @@ T Sine(const T& x)
 template <typename T>
 T Cosine(const T& x)
 {
-
   return Sine(x + T(0.25));
+}
+
+template <typename T>
+T quadraticSine(const T& x)
+{
+  const auto evaluatorFn = [](const T& a)
+  {
+    return -a * a +T(0.75) + a;
+  };
+
+  if (x < T(0.5))
+  {
+    return evaluatorFn(
+      x < T(0.25)
+      ? (x - T(0.25 / 2.)) * T(4)
+      : (x - T(0.25 * 3. / 2.)) * T(-4)
+    );
+  }
+  else
+  {
+    return -evaluatorFn(
+      x < T(0.75)
+      ? (x - T(0.5 + 0.25 / 2.)) * T(4)
+      : (x - T(0.5 + 0.25 * 3. / 2.)) * T(-4)
+    );
+  }
 }
 
 //------------------------------------------------------------------------------

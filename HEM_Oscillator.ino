@@ -30,6 +30,14 @@ namespace NOscillator
 {
   struct Model
   {
+    enum class Waveforms
+    {
+      Sine,
+      QuadraticSine,
+      Square,
+      COUNT
+    };
+
     struct Decay: Property<float>
     {
       Decay()
@@ -42,10 +50,20 @@ namespace NOscillator
       using ValueConverter = ExponentialValueConverter;
     };
 
+    struct Waveform: Property<Waveforms>
+    {
+      Waveform()
+      {
+        setValue(Waveforms::Sine);
+        setEnumStrings({"Sine", "QSine", "Square"});
+      }
+    };
+
     using RootNote = RootNoteProperty;
     using Scale = ScaleProperty;
+    using Octave = OctaveProperty;
 
-    using Properties = PropertySet<Decay, RootNote, Scale>;
+    using Properties = PropertySet<RootNote, Scale, Octave, Waveform, Decay>;
   };
 
   class Applet : public ArticCircleApplet<Model> {
@@ -70,10 +88,38 @@ namespace NOscillator
 
         bind<Model::RootNote>(root_);
 
-        osc_.setTicker([](const sample_t& phase)
-        {
-          return Sine(phase);
+        setCallback<Model::Waveform>([this](const auto& waveform){
+          switch(waveform)
+          {
+            case Model::Waveforms::Sine:
+              osc_.setTicker([](const sample_t& phase)
+              {
+                return Sine(phase);
+              });
+              break;
+            case Model::Waveforms::QuadraticSine:
+              osc_.setTicker([](const sample_t& phase)
+              {
+                return quadraticSine(phase);
+              });
+              break;
+
+            case Model::Waveforms::Square:
+              osc_.setTicker([](const sample_t& phase)
+              {
+                return phase < sample_t(0.5) ? sample_t(-1) : sample_t(1);
+              });
+              break;
+
+            default:
+              break;
+          }
         });
+
+        setCallback<Model::Octave>([this](const auto& o){
+          freqMult_ = powf(2., o);
+        });
+
       }
 
       void reset() final
@@ -87,7 +133,7 @@ namespace NOscillator
         const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
         lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24;
         const float frequency = midiNoteToFrequency(lastNote_);
-        osc_.setFrequency(frequency);
+        osc_.setFrequency(frequency * freqMult_);
         Out(0, float(osc_.tick() * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
       }
 
@@ -122,6 +168,7 @@ namespace NOscillator
     braids::Quantizer quantizer_;
     int32_t lastNote_;
     int root_;
+    float freqMult_;
   };
 
   Applet instance_[2];

@@ -48,3 +48,15 @@ struct PercentageProperty : public Property<float>
     setRange(0.f, 1.f);
   }
 };
+
+//------------------------------------------------------------------------------
+
+struct OctaveProperty: Property<int>
+{
+  OctaveProperty()
+  {
+    setLabel("o");
+    setRange(-12,3);
+    setValue(-1);
+  }
+};

@@ -48,15 +48,7 @@ namespace NTerrainOsc
       }
     };
 
-    struct Octave: Property<int>
-    {
-      Octave()
-      {
-        setLabel("o");
-        setRange(-12,3);
-        setValue(-1);
-      }
-    };
+    using Octave = OctaveProperty;
 
     using Properties = PropertySet<RootNote, Scale, Octave, Harmonics, Motion>;
   };
