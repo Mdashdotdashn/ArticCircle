@@ -263,6 +263,11 @@ public:
     return fp * fp;
   }
 
+  static FixedFP cube(const FixedFP& fp)
+  {
+    return fp * fp * fp;
+  }
+
   friend std::ostream& operator<< (std::ostream& out, const FixedFP& fp)
   {
     out << "fixed[" << fp.value_ << "," << float(fp) << "]";
@@ -354,4 +359,10 @@ template <typename C,uint8_t F>
 FixedFP<C,F> square(const FixedFP<C,F>& x)
 {
   return FixedFP<C,F>::square(x);
+}
+
+template <typename C,uint8_t F>
+FixedFP<C,F> cube(const FixedFP<C,F>& x)
+{
+  return FixedFP<C,F>::sube(x);
 }
