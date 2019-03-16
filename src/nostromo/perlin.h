@@ -83,8 +83,9 @@ Noise()
 
   // Creat a duplicated  permutation vector
   auto iterator = std::begin(p);
-  for (auto i: {1,2})
+  for (auto i : {1,2})
   {
+    (void)(i);
     iterator = std::copy(std::begin(data), std::end(data), iterator);
   }
 }

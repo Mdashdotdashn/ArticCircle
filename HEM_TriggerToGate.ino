@@ -158,8 +158,8 @@ namespace NTriggerToGate
       numerator_[1] = calcNumerator(denominator_[1], pw2);
     }
   private:
-    int numerator_[2];
-    int denominator_[2];
+    std::size_t numerator_[2];
+    std::size_t denominator_[2];
     float pulseWidth_[2];
 
     bool state_[2];
