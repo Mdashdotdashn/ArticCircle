@@ -3,6 +3,94 @@
 #include "math.h"
 #include "fixed.h"
 #include <cmath>
+
+template <typename T>
+T select(bool condition, const T& a, const T&b)
+{
+  return condition ? a : b;
+}
+
+template <typename T>
+T saw(const T& in)
+{
+  return T(2) * select(in < T(0.5), in, in - T(1));
+}
+
+template <typename T>
+T reverseSaw(const T& in)
+{
+  return -saw(in);
+}
+
+template <typename T>
+T rect(const T& in, const T& midPoint = T(0.5))
+{
+  return select(in < midPoint, T(1), T(-1));
+}
+
+template <typename T>
+T triangle(const T& in)
+{
+  using std::abs;
+  return T(1) - abs(T(2) - abs(T(4) * in - T(3)));
+}
+
+template <typename T>
+T polyBlep1(const T& phase, const T& phaseInc, const T& discontinuity = T(0.5))
+{
+  auto result = T(0);
+
+  result += select(
+    (phase >= discontinuity) & (phase < (discontinuity + phaseInc)),
+    -square((phase - (discontinuity + phaseInc)) / phaseInc), T(0));
+
+  result += select(
+    (phase >= (discontinuity - phaseInc)) & (phase < discontinuity),
+    square((phase - (discontinuity - phaseInc)) / phaseInc), T(0));
+
+  const auto normalisationScaling = T(2);
+  return result / normalisationScaling;
+}
+
+//! The same as polyBlep1 but with a fixed discontinuity position at phase = 0|1
+template <typename T>
+T polyBlep1Fixed(const T& phase, const T& phaseInc)
+{
+  auto result = T(0);
+
+  result += select(phase < phaseInc, -square(phase / phaseInc - T(1)), T(0));
+
+  result +=
+    select(phase > T(1) - phaseInc, square((phase - (T(1) - phaseInc)) / phaseInc), T(0));
+
+  const auto normalisationScaling = T(2);
+  return result / normalisationScaling;
+}
+
+/*! A bandlimited pulse wave.
+ *
+ *  Midpoint accepts values `[0..1]` to set the pulsewidth.  A pulsewidth of 0
+ *  will produce no output.
+ *
+ *  If the phaseInc is larger than the pulsewidth then polyBlep1Fixed will
+ *  assert.  This limitation is to avoid checking for the case that the Blep
+ *  wraps round the reset from 1 to 0.  For release, if the frequency exceeds
+ *  this limit then the oscillator will work but is not anti-aliased.  One way
+ *  the client can avoid this is by clamping the pulse width for very high
+ *  frequencies: - phaseInc < narrowest pulse width < phaseInc.
+ */
+
+template <typename T>
+T rectPolyBlep(const T& phase, const T& phaseIncrement, const T& midPoint = T(0.5))
+{
+  //  The BLEP residual is scaled by the height of the step.
+  const auto stepScaling = T(2);
+
+  //  Discontinuities occur at 0 and midPoint.
+  return rect(phase, midPoint) + stepScaling * polyBlep1Fixed(phase, phaseIncrement)
+         - stepScaling * polyBlep1(phase, phaseIncrement, midPoint);
+}
+
 //------------------------------------------------------------------------------
 
 template <typename T>
@@ -197,4 +285,71 @@ public:
 private:
   Slew<T> slew_;
   T target_;
+};
+
+template <typename T>
+class LinearADEnvelope
+{
+  constexpr static float kNoiseFloor = 1e-4;
+
+public:
+  void init()
+  {
+    attackCoef_ = releaseCoef_ = T(0.1);
+    target_ = T(0);
+  }
+
+  void setCoefficients(const uint32_t attackInSamples, const uint32_t releaseInSamples)
+  {
+    attackCoef_ = T(1.f/float(attackInSamples));
+    releaseCoef_ = T(1.f/float(releaseInSamples));
+  }
+
+  T tick(bool gate)
+  {
+    if (target_ == T(1))
+    {
+      value_ += attackCoef_;
+
+      if (value_ >= T(1) && gate)
+      {
+        value_ = T(1);
+      }
+      else
+      {
+        target_ = T(0);
+        const auto overshoot = value_ - T(1);
+        value_ -= overshoot * (releaseCoef_ - attackCoef_);
+      }
+    }
+    else
+    {
+      if (value_ > T(kNoiseFloor))
+      {
+        value_ -= releaseCoef_;
+      }
+      if (value_ < T(kNoiseFloor))
+      {
+        value_ = T(0);
+      }
+    }
+
+    if (gate)
+    {
+      target_ = T(1);
+    }
+
+    return value_;
+  }
+
+  T value()
+  {
+    return value_;
+  }
+
+private:
+  T target_;
+  T value_;
+  T attackCoef_;
+  T releaseCoef_;
 };

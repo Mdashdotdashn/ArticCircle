@@ -35,6 +35,7 @@ namespace NOscillator
       Sine,
       QuadraticSine,
       Square,
+      BRect,
       COUNT
     };
 
@@ -55,7 +56,7 @@ namespace NOscillator
       Waveform()
       {
         setValue(Waveforms::Sine);
-        setEnumStrings({"Sine", "QSine", "Square"});
+        setEnumStrings({"Sine", "QSine", "Square", "BRect"});
       }
     };
 
@@ -76,10 +77,12 @@ namespace NOscillator
         root_ = 0;
         quantizer_.Init();
         lastNote_ = 0;
-        eg_.init();
+        //eg_.init();
+        leg_.init();
 
         setCallback<Model::Decay>([this](const auto& decay){
-          eg_.setCoefficients(calcSlewCoeff(16), calcSlewCoeff(kSampleRate * decay));
+          //eg_.setCoefficients(calcSlewCoeff(16), calcSlewCoeff(kSampleRate * decay));
+          leg_.setCoefficients(16, uint32_t(kSampleRate * decay));
         });
 
         setCallback<Model::Scale>([this](const auto& scale){
@@ -92,22 +95,29 @@ namespace NOscillator
           switch(waveform)
           {
             case Model::Waveforms::Sine:
-              osc_.setTicker([](const sample_t& phase)
+              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/)
               {
                 return Sine(phase);
               });
               break;
             case Model::Waveforms::QuadraticSine:
-              osc_.setTicker([](const sample_t& phase)
+              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/)
               {
                 return quadraticSine(phase);
               });
               break;
 
             case Model::Waveforms::Square:
-              osc_.setTicker([](const sample_t& phase)
+              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/)
               {
                 return phase < sample_t(0.5) ? sample_t(-1) : sample_t(1);
+              });
+              break;
+
+            case Model::Waveforms::BRect:
+              osc_.setTicker([](const sample_t& phase, const sample_t& phaseInc)
+              {
+                return rectPolyBlep(phase, phaseInc);
               });
               break;
 
@@ -117,7 +127,7 @@ namespace NOscillator
         });
 
         setCallback<Model::Octave>([this](const auto& o){
-          freqMult_ = powf(2., o);
+          octave_ = o;
         });
 
       }
@@ -131,10 +141,10 @@ namespace NOscillator
       {
         const int32_t pitch = In(0);
         const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
-        lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24;
-        const float frequency = midiNoteToFrequency(lastNote_);
-        osc_.setFrequency(frequency * freqMult_);
-        Out(0, float(osc_.tick() * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
+        lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24 + octave_ * 12;
+        const float frequency = midiNoteToFrequency(lastNote_) ;
+        osc_.setFrequency(frequency);
+        Out(0, float(osc_.tick() * leg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
       }
 
   	/* Draw the screen */
@@ -145,7 +155,7 @@ namespace NOscillator
       //  gfxPrint(21, 15, 10.f * decay_);
         ArticCircleApplet<Model>::drawApplet();
 
-        if (eg_.value() > sample_t(1e-4))
+        if (leg_.value() > sample_t(1e-4))
         {
           gfxPrint(38, 50, midi_note_numbers[lastNote_]);
         }
@@ -163,12 +173,13 @@ namespace NOscillator
       // }
 
   private:
-    ADEnvelope<sample_t> eg_;
+//    ADEnvelope<sample_t> eg_;
+    LinearADEnvelope<sample_t> leg_;
     Oscillator<sample_t> osc_;
     braids::Quantizer quantizer_;
     int32_t lastNote_;
     int root_;
-    float freqMult_;
+    int octave_;
   };
 
   Applet instance_[2];

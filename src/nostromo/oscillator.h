@@ -29,6 +29,10 @@ public:
     return phase_;
   }
 
+  T phaseInc() const
+  {
+    return phaseIncrease_;
+  }
 private:
 
   void updatePhaseInc()
@@ -47,7 +51,7 @@ template <typename T>
 class Oscillator
 {
 public:
-  using Ticker = std::function<T(const T&)>;
+  using Ticker = std::function<T(const T&, const T&)>;
 
   void reset(const float samplerate)
   {
@@ -67,7 +71,7 @@ public:
   T tick()
   {
     const auto phase = phasor_.tick();
-    return ticker_ ? ticker_(phase) : T(0);
+    return ticker_ ? ticker_(phase, phasor_.phaseInc()) : T(0);
   }
 private:
   Phasor<T> phasor_;
