@@ -56,7 +56,7 @@ namespace NOscillator
       Waveform()
       {
         setValue(Waveforms::Sine);
-        setEnumStrings({"Sine", "QSine", "Square", "BRect"});
+        setEnumStrings({"Sine", "QSine", "Square", "BSquare"});
       }
     };
 
@@ -141,7 +141,7 @@ namespace NOscillator
       {
         const int32_t pitch = In(0);
         const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
-        lastNote_ = MIDIQuantizer::NoteNumber(quantized) -24 + octave_ * 12;
+        lastNote_ = clamp(MIDIQuantizer::NoteNumber(quantized) -24 + octave_ * 12, 0 , 127);
         const float frequency = midiNoteToFrequency(lastNote_) ;
         osc_.setFrequency(frequency);
         Out(0, float(osc_.tick() * leg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
