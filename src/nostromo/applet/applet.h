@@ -111,13 +111,13 @@ public:
 
   void initLayout()
   {
-    const auto kParameterRow = 6;
+    const auto kParameterPerRow = 5;
     const auto kColSpacing = 9;
 
     for (std::size_t index = 0; index < propertyManager_.size(); index++)
     {
-      const auto x = 32 * (index /kParameterRow);
-      const auto y = kColSpacing * (index % kParameterRow);
+      const auto x = 32 * (index / kParameterPerRow);
+      const auto y = kColSpacing * (index % kParameterPerRow);
       auto& bundle = propertyManager_.getBundle(index);
       bundle::setPosition(bundle, x, y);
     }

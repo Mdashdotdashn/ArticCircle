@@ -173,9 +173,15 @@ public:
     target_ = T(0);
   }
 
-  void setCoefficients(const T& attack, const T& decay)
+  void reset()
   {
-    slew_.setCoefficients(attack, decay);
+    slew_.init(T(0));
+    target_ = T(0);
+  }
+
+  void setCoefficients(const uint32_t attack, const uint32_t decay)
+  {
+    slew_.setCoefficients(calcSlewCoeff(attack), calcSlewCoeff(decay));
   }
 
   T tick(bool gate)
@@ -215,6 +221,13 @@ public:
   void init()
   {
     attackCoef_ = releaseCoef_ = T(0.1);
+    target_ = T(0);
+    value_ = T(0);
+  }
+
+  void reset()
+  {
+    value_ = (0);
     target_ = T(0);
   }
 

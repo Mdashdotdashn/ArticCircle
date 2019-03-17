@@ -60,3 +60,12 @@ struct OctaveProperty: Property<int>
     setValue(-1);
   }
 };
+
+//------------------------------------------------------------------------------
+
+class TimeStringConverter: public detail::StringConverterBase<float>
+{
+public:
+  TimeStringConverter(Property<float>& p);
+  String propertyToString(const Property<float>& p) final;
+};

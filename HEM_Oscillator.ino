@@ -36,6 +36,14 @@ namespace NOscillator
       QuadraticSine,
       Square,
       BRect,
+      Random,
+      COUNT
+    };
+
+    enum class Envelopes
+    {
+      Exponential,
+      Linear,
       COUNT
     };
 
@@ -44,11 +52,12 @@ namespace NOscillator
       Decay()
       {
         setValue(0.22f);
-        setRange(0.01f, 5.f, 0.02f);
+        setRange(0.01f, 5.f, 0.005f);
         setExponentialScaling(3.f);
       }
 
       using ValueConverter = ExponentialValueConverter;
+      using StringConverter = TimeStringConverter;
     };
 
     struct Waveform: Property<Waveforms>
@@ -56,7 +65,16 @@ namespace NOscillator
       Waveform()
       {
         setValue(Waveforms::Sine);
-        setEnumStrings({"Sine", "QSine", "Square", "BSquare"});
+        setEnumStrings({"Sine", "QSine", "Square", "BSquare", "Random"});
+      }
+    };
+
+    struct Envelope: Property<Envelopes>
+    {
+      Envelope()
+      {
+        setValue(Envelopes::Exponential);
+        setEnumStrings({"Exp", "Lin"});
       }
     };
 
@@ -64,8 +82,54 @@ namespace NOscillator
     using Scale = ScaleProperty;
     using Octave = OctaveProperty;
 
-    using Properties = PropertySet<RootNote, Scale, Octave, Waveform, Decay>;
+    using Properties = PropertySet<RootNote, Scale, Octave, Waveform, Envelope, Decay>;
   };
+
+  class SwitchableEG
+  {
+  public:
+    using Envelopes = Model::Envelopes;
+
+    SwitchableEG()
+    : envelope_(Envelopes::Exponential)
+    {}
+
+    void init()
+    {
+      eg_.init();
+      leg_.init();
+    }
+
+    void setMode(const Envelopes envelope)
+    {
+      envelope_ = envelope;
+      eg_.reset();
+      leg_.reset();
+    }
+
+    void setDecay(float decayTime)
+    {
+      eg_.setCoefficients(16, uint32_t(kSampleRate * decayTime));
+      leg_.setCoefficients(16, uint32_t(kSampleRate * decayTime));
+    }
+
+    sample_t tick(const bool gate)
+    {
+      return envelope_ == Envelopes::Exponential ? eg_.tick(gate) : leg_.tick(gate);
+    }
+
+    sample_t value()
+    {
+      return envelope_ == Envelopes::Exponential ? eg_.value() : leg_.value();
+    }
+
+  private:
+    Envelopes envelope_;
+    ADEnvelope<sample_t> eg_;
+    LinearADEnvelope<sample_t> leg_;
+  };
+
+  //-------------------------------------------------------------------------------------------------------
 
   class Applet : public ArticCircleApplet<Model> {
   public:
@@ -77,12 +141,12 @@ namespace NOscillator
         root_ = 0;
         quantizer_.Init();
         lastNote_ = 0;
-        //eg_.init();
-        leg_.init();
+
+        random::uniform_distribution(random::get_seed());
+        eg_.init();
 
         setCallback<Model::Decay>([this](const auto& decay){
-          //eg_.setCoefficients(calcSlewCoeff(16), calcSlewCoeff(kSampleRate * decay));
-          leg_.setCoefficients(16, uint32_t(kSampleRate * decay));
+          eg_.setDecay(decay);
         });
 
         setCallback<Model::Scale>([this](const auto& scale){
@@ -117,7 +181,14 @@ namespace NOscillator
             case Model::Waveforms::BRect:
               osc_.setTicker([](const sample_t& phase, const sample_t& phaseInc)
               {
-                return rectPolyBlep(phase, phaseInc);
+                return (rectPolyBlep(phase, phaseInc) + sample_t(1)) * sample_t(0.5);
+              });
+              break;
+
+            case Model::Waveforms::Random:
+              osc_.setTicker([](const sample_t& /*phase*/, const sample_t& /*phaseInc*/)
+              {
+                return rand<sample_t>();
               });
               break;
 
@@ -130,6 +201,9 @@ namespace NOscillator
           octave_ = o;
         });
 
+        setCallback<Model::Envelope>([this](const auto& o){
+          eg_.setMode(o);
+        });
       }
 
       void reset() final
@@ -144,18 +218,15 @@ namespace NOscillator
         lastNote_ = clamp(MIDIQuantizer::NoteNumber(quantized) -24 + octave_ * 12, 0 , 127);
         const float frequency = midiNoteToFrequency(lastNote_) ;
         osc_.setFrequency(frequency);
-        Out(0, float(osc_.tick() * leg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
+        Out(0, float(osc_.tick() * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
       }
 
   	/* Draw the screen */
       void drawApplet() final
       {
-        gfxSkyline();
-          // Add other view code as private methods
-      //  gfxPrint(21, 15, 10.f * decay_);
         ArticCircleApplet<Model>::drawApplet();
 
-        if (leg_.value() > sample_t(1e-4))
+        if (eg_.value() > sample_t(1e-4))
         {
           gfxPrint(38, 50, midi_note_numbers[lastNote_]);
         }
@@ -173,9 +244,8 @@ namespace NOscillator
       // }
 
   private:
-//    ADEnvelope<sample_t> eg_;
-    LinearADEnvelope<sample_t> leg_;
     Oscillator<sample_t> osc_;
+    SwitchableEG eg_;
     braids::Quantizer quantizer_;
     int32_t lastNote_;
     int root_;

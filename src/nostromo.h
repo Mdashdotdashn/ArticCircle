@@ -11,5 +11,6 @@
 #include "nostromo/perlin.h"
 #include "nostromo/properties/property.h"
 #include "nostromo/properties/string_conversion.h"
+#include "nostromo/random.h"
 
 #define K(a) true
