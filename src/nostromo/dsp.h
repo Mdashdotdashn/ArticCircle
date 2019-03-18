@@ -108,7 +108,7 @@ std::pair<T, T> quadraticSinCos(const T& x)
 
 //------------------------------------------------------------------------------
 
-static inline float calcSlewCoeff(uint32_t sampleCount, float noiseFloor = 1e-4f)
+constexpr static float calcSlewCoeff(uint32_t sampleCount, float noiseFloor = 1e-4f)
 {
   return exp(log(noiseFloor)/float(sampleCount));
 }
@@ -179,9 +179,14 @@ public:
     target_ = T(0);
   }
 
-  void setCoefficients(const uint32_t attack, const uint32_t decay)
+  void setSlopes(const uint32_t attack, const uint32_t decay)
   {
-    slew_.setCoefficients(calcSlewCoeff(attack), calcSlewCoeff(decay));
+    setCoeffs(calcSlewCoeff(attack), calcSlewCoeff(decay));
+  }
+
+  void setCoeffs(const T& a, const T& d)
+  {
+    slew_.setCoefficients(a, d);
   }
 
   T tick(bool gate)
@@ -231,7 +236,7 @@ public:
     target_ = T(0);
   }
 
-  void setCoefficients(const uint32_t attackInSamples, const uint32_t releaseInSamples)
+  void setSlopes(const uint32_t attackInSamples, const uint32_t releaseInSamples)
   {
     attackCoef_ = T(1.f/float(attackInSamples));
     releaseCoef_ = T(1.f/float(releaseInSamples));

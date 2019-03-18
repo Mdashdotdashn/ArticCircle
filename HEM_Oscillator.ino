@@ -109,8 +109,8 @@ namespace NOscillator
 
     void setDecay(float decayTime)
     {
-      eg_.setCoefficients(16, uint32_t(kSampleRate * decayTime));
-      leg_.setCoefficients(16, uint32_t(kSampleRate * decayTime));
+      eg_.setSlopes(16, uint32_t(kSampleRate * decayTime));
+      leg_.setSlopes(16, uint32_t(kSampleRate * decayTime));
     }
 
     sample_t tick(const bool gate)

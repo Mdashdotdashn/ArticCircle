@@ -44,8 +44,8 @@ T polyBlep1(const T& phase, const T& phaseInc, const T& discontinuity = T(0.5))
     (phase >= (discontinuity - phaseInc)) & (phase < discontinuity),
     square((phase - (discontinuity - phaseInc)) / phaseInc), T(0));
 
-  const auto normalisationScaling = T(2);
-  return result / normalisationScaling;
+  const auto normalisationScaling = T(0.5);
+  return result * normalisationScaling;
 }
 
 //! The same as polyBlep1 but with a fixed discontinuity position at phase = 0|1
@@ -60,8 +60,8 @@ T polyBlep1Fixed(const T& phase, const T& phaseInc)
   result +=
     select(phase > T(1) - phaseInc, square((phase - (T(1) - phaseInc)) / phaseInc), T(0));
 
-  const auto normalisationScaling = T(2);
-  return result / normalisationScaling;
+  const auto normalisationScaling = T(0.5);
+  return result * normalisationScaling;
 }
 
 template <typename T>
