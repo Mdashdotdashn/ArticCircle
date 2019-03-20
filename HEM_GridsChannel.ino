@@ -189,10 +189,10 @@ namespace NGridsChannel
             else
             {
               bool trigger = level > threshold;
-              if (flipFlopOutput_[ch])
+              if (trigger && flipFlopOutput_[ch])
               {
                 flopState_[ch] = !flopState_[ch];
-                trigger &= flopState_[ch];
+                trigger = flopState_[ch];
               }
 
               sizer_[ch].feed(trigger);
