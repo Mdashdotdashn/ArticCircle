@@ -17,6 +17,11 @@ public:
   virtual void tick() = 0;
   virtual void reset() {};
 
+  bool flankUp(int ch)
+  {
+    return (flank_[ch] == 1);
+  }
+
   void gfxPrintF(int x, int y, float value)
   {
     static char buffer[20];
@@ -81,6 +86,11 @@ public:
   void Start()
   {
     reset();
+    ForEachChannel(ch)
+    {
+      previousGate_[ch] = 0;
+      flank_[ch] = 0;
+    }
   }
 
 /* Run during the interrupt service routine, 16667 times per second */
@@ -88,9 +98,22 @@ public:
   {
     ForEachChannel(ch)
     {
-      sizer_[ch].feed(Gate(ch));
+      bool gate = Gate(ch);
+      if (gate != previousGate_[ch])
+      {
+        flank_[ch] = gate ? 1 : -1;
+      }
+      else
+      {
+        flank_[ch] = 0;
+      }
+      sizer_[ch].feed(gate);
     }
     tick();
+    ForEachChannel(ch)
+    {
+      previousGate_[ch] = Gate(ch);
+    }
   }
 
 /* Draw the screen */
@@ -193,4 +216,6 @@ protected:
   PropertyManager<Model> propertyManager_;
   const char *name_ = "unknown";
   TriggerSizer<4> sizer_[2];
+  bool previousGate_[2];
+  int flank_[2];
  };

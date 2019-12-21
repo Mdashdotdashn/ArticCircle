@@ -66,6 +66,12 @@ T quadraticSine(const T& x)
 }
 
 template <typename T>
+T quadraticCosine(const T& x)
+{
+  return quadraticSine(frac(x + T(0.25)));
+}
+
+template <typename T>
 std::pair<T, T> quadraticSinCos(const T& x)
 {
   const auto evaluatorFn = [](const T& a)

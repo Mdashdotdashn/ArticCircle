@@ -217,7 +217,7 @@ namespace NGridsChannel
 
     void tick() final
     {
-      if (Clock(1))
+      if (flankUp(1))
       {
         channel_.reset();
       }

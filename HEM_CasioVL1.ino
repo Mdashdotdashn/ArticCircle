@@ -135,6 +135,11 @@ namespace NCasioVL1
     virtual void tick() final
     {
       gate_ = false;
+
+      if (flankUp(1))
+      {
+          position_ = 0;
+      }
       if (Clock(0))
       {
         nextStep();
