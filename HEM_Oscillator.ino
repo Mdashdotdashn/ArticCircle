@@ -36,6 +36,7 @@ namespace NOscillator
       QuadraticSine,
       Square,
       BRect,
+      SharkTooth,
       Random,
       COUNT
     };
@@ -65,7 +66,7 @@ namespace NOscillator
       Waveform()
       {
         setValue(Waveforms::Sine);
-        setEnumStrings({"Sine", "QSine", "Square", "BSquare", "Random"});
+        setEnumStrings({"Sine", "QSine", "Square", "BSquare", "Shark", "Random"});
       }
     };
 
@@ -185,6 +186,13 @@ namespace NOscillator
               });
               break;
 
+            case Model::Waveforms::SharkTooth:
+              osc_.setTicker([this](const sample_t& phase, const sample_t& phaseInc)
+              {
+                return sharkShape_.tick(phase, phaseInc, sample_t(0.7));
+              });
+              break;
+
             case Model::Waveforms::Random:
               osc_.setTicker([](const sample_t& /*phase*/, const sample_t& /*phaseInc*/)
               {
@@ -218,7 +226,9 @@ namespace NOscillator
         lastNote_ = clamp(MIDIQuantizer::NoteNumber(quantized) -24 + octave_ * 12, 0 , 127);
         const float frequency = midiNoteToFrequency(lastNote_) ;
         osc_.setFrequency(frequency);
-        Out(0, float(osc_.tick() * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
+        const auto osc = osc_.tick();
+        Out(0, float(osc * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
+        Out(1, float(osc) * HEMISPHERE_3V_CV);
       }
 
   	/* Draw the screen */
@@ -245,6 +255,7 @@ namespace NOscillator
 
   private:
     Oscillator<sample_t> osc_;
+    SharkToothShape<sample_t> sharkShape_;
     SwitchableEG eg_;
     braids::Quantizer quantizer_;
     int32_t lastNote_;

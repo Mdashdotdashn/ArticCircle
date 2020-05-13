@@ -8,6 +8,7 @@
 #include "nostromo/oscillators/oscillator.h"
 #include "nostromo/oscillators/phasor.h"
 #include "nostromo/oscillators/shapes.h"
+#include "nostromo/oscillators/shark-tooth.h"
 #include "nostromo/perlin.h"
 #include "nostromo/properties/property.h"
 #include "nostromo/properties/string_conversion.h"
