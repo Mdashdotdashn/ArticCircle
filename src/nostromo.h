@@ -5,6 +5,7 @@
 #include "nostromo/midi.h"
 #include "nostromo/math.h"
 #include "nostromo/fixed.h"
+#include "nostromo/generators/flip-flop-pattern.h"
 #include "nostromo/oscillators/oscillator.h"
 #include "nostromo/oscillators/phasor.h"
 #include "nostromo/oscillators/shapes.h"

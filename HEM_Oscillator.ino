@@ -34,6 +34,7 @@ namespace NOscillator
     {
       Sine,
       QuadraticSine,
+      TanhSine,
       Square,
       BRect,
       SharkTooth,
@@ -66,7 +67,7 @@ namespace NOscillator
       Waveform()
       {
         setValue(Waveforms::Sine);
-        setEnumStrings({"Sine", "QSine", "Square", "BSquare", "Shark", "Random"});
+        setEnumStrings({"Sine", "QSine", "Tanh", "Square", "BSquare", "Shark", "Random"});
       }
     };
 
@@ -171,6 +172,13 @@ namespace NOscillator
                 return quadraticSine(phase);
               });
               break;
+
+              case Model::Waveforms::TanhSine:
+                osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/)
+                {
+                  return tanh(phase);
+                });
+                break;
 
             case Model::Waveforms::Square:
               osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/)

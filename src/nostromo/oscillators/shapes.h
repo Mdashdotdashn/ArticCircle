@@ -150,3 +150,16 @@ sample_t rand<sample_t>()
   const auto val = random::uniform_distribution();
   return sample_t::fromRatio((val & 0x3FFFFFFF) >> 15, 32767);
 }
+
+
+template <typename T>
+T tanh(const T& phase)
+{
+  const auto tanhApprox = [](const T& x)
+  {
+    const auto x2 = x*x;
+    const auto x3 = x*x2;
+    return (T(1)*x + T(0.0812081221471)*x3)/(T(1) + T(0.412523749044)*x2 + T(0.00624523306500)*x2*x2);
+  };
+  return tanhApprox(triangle(phase)*T(2));
+}

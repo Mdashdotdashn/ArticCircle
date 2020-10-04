@@ -10,3 +10,9 @@ void serial_printf(const char *fmt, ...) {
   va_end(args);
   Serial.print(buf);
 }
+
+extern "C" {
+int _write(int , char *, int) {
+  return 0;
+}
+}

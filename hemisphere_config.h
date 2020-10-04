@@ -8,7 +8,7 @@
 // 0x40 = Logic
 // 0x80 = Other
 
-#define HEMISPHERE_AVAILABLE_APPLETS 7
+#define HEMISPHERE_AVAILABLE_APPLETS 8
 
 //////////////////  id  cat   class name
 #define HEMISPHERE_APPLETS { \
@@ -19,5 +19,6 @@
     DECLARE_APPLET( 5, 0x04, PingableLfo), \
     DECLARE_APPLET( 6, 0x04, NoiseRampLfo), \
     DECLARE_APPLET( 7, 0x04, SubHarm), \
+    DECLARE_APPLET( 8, 0x04, FlipFlopPattern), \
 }
 /*    DECLARE_APPLET(127, 0x80, DIAGNOSTIC), \ */
