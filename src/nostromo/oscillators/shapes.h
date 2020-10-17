@@ -125,33 +125,6 @@ T trianglePolyBlamp(const T& phase, const T& phaseIncrement)
          + slopeScaling * polyBlamp2(phase, phaseIncrement, T(0.75));
 }
 
-// Random
-
-template <typename T>
-T rand();
-
-template <>
-float rand<float>()
-{
-  const auto val = random::uniform_distribution();
-  return ((val & 0x3FFFFFFF) >> 15) / 32767.f;
-}
-
-template <>
-double rand<double>()
-{
-  const auto val = random::uniform_distribution();
-  return ((val & 0x3FFFFFFF) >> 15) / 32767.0;
-}
-
-template <>
-sample_t rand<sample_t>()
-{
-  const auto val = random::uniform_distribution();
-  return sample_t::fromRatio((val & 0x3FFFFFFF) >> 15, 32767);
-}
-
-
 template <typename T>
 T tanh(const T& phase)
 {
