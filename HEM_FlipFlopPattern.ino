@@ -26,6 +26,13 @@ namespace NFlipFlopPattern
 
   struct Model
   {
+    enum class Modes
+    {
+      Gate,
+      Drums,
+      COUNT
+    };
+
     struct StepCount: Property<int>
     {
       StepCount()
@@ -45,7 +52,16 @@ namespace NFlipFlopPattern
       }
     };
 
-    using Properties = PropertySet<StepCount, Density>;
+    struct Mode: Property<Modes>
+    {
+      Mode()
+      {
+        setValue(Modes::Drums);
+        setEnumStrings({"Gate", "Drum"});
+      }
+    };
+
+    using Properties = PropertySet<StepCount, Density, Mode>;
   };
 
 
@@ -66,20 +82,71 @@ namespace NFlipFlopPattern
         density_ = d;
         this->rebuild();
       });
+
+      setCallback<Model::Mode>([this](const auto& m) {
+        mode_ = m;
+        this->rebuild();
+      });
     }
 
     void rebuild()
     {
       const auto steps = generator_.generate<kMaxSteps>(stepCount_, density_);
-      bool value = true;
-      size_t position = 0;
-      for (auto& step : steps)
+
+      switch(mode_)
       {
-        for (size_t j = 0; j < step; j++)
+        case Model::Modes::Gate:
         {
-          if (position < kMaxSteps) steps_[position++] = value;
+          bool value = true;
+          size_t position = 0;
+          for (auto& step : steps)
+          {
+            for (size_t j = 0; j < step; j++)
+            {
+              if (position < kMaxSteps) boolSteps_[position++] = value;
+            }
+            value = ! value;
+          }
+          break;         
         }
-        value = ! value;
+        case Model::Modes::Drums:
+        {
+          for (size_t j = 0; j < kMaxSteps; j++)
+          {
+            intSteps_[j] = 0;
+          }
+         
+          uint8_t value = 1u;
+          size_t position = 0;
+          for (auto& step : steps)
+          {
+            intSteps_[position] = value;
+            position += step;
+            value = (value) % 2 + 1;
+          }
+
+          // Adds special case for up bead
+          const auto drumBassCount = 2;
+          const auto offset = kMaxSteps / drumBassCount;
+          for (size_t i = 0; i < drumBassCount; i++)
+          {
+            const auto position = i * offset;
+            intSteps_[position] = (intSteps_[position] == 0) ? 1 : size_t(random() * 2 + 1);
+          }
+
+          intSteps_[0] = 1;
+          
+          for (size_t j = 0; j < kMaxSteps - 1; j++)
+          {
+            if (intSteps_[j+1] == intSteps_[j])
+            {
+              intSteps_[j+1] = 0;
+            }
+          }
+          break;         
+        }
+        default:
+          break;
       }
     }
 
@@ -97,11 +164,34 @@ namespace NFlipFlopPattern
     
       if (Clock(0))
       {
-        // Trigger at output 1 at each beginning of the cycle
-        if (position_ == 0) ClockOut(1);
-        // Sends the flip-flip state on output 0
-        GateOut(0, steps_[position_]);
-        position_ = (position_ +1) % kMaxSteps;
+        switch(mode_)
+        {
+          case Model::Modes::Gate:
+          {
+            // Trigger at output 1 at each beginning of the cycle
+            if (position_ == 0) ClockOut(1);
+            // Sends the flip-flip state on output 0
+            GateOut(0, boolSteps_[position_]);
+            break;                 
+          }
+          case Model::Modes::Drums:
+          {
+            switch(intSteps_[position_])
+            {
+              case 1:
+                ClockOut(0);
+                break;
+              case 2:
+                ClockOut(1);
+                break;
+              default:
+                break;
+            }
+          }
+          default:
+            break;
+        }
+        position_ = (position_ +1) % kMaxSteps;     
       }
     }
 
@@ -113,10 +203,12 @@ namespace NFlipFlopPattern
 
   private:
     FlipFlopPatternWeaver<kMaxSteps> generator_;
-    std::array<bool, kMaxSteps> steps_;
+    std::array<bool, kMaxSteps> boolSteps_;
+    std::array<uint8_t, kMaxSteps> intSteps_;
     float density_;
     size_t stepCount_;
     size_t position_ = 0;
+    Model::Modes mode_ = Model::Modes::Drums;
   };
 
   Applet instance_[2];
