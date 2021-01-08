@@ -107,7 +107,7 @@ namespace NFlipFlopPattern
             }
             value = ! value;
           }
-          break;         
+          break;
         }
         case Model::Modes::Drums:
         {
@@ -115,7 +115,7 @@ namespace NFlipFlopPattern
           {
             intSteps_[j] = 0;
           }
-         
+
           uint8_t value = 1u;
           size_t position = 0;
           for (auto& step : steps)
@@ -135,7 +135,7 @@ namespace NFlipFlopPattern
           }
 
           intSteps_[0] = 1;
-          
+
           for (size_t j = 0; j < kMaxSteps - 1; j++)
           {
             if (intSteps_[j+1] == intSteps_[j])
@@ -143,7 +143,7 @@ namespace NFlipFlopPattern
               intSteps_[j+1] = 0;
             }
           }
-          break;         
+          break;
         }
         default:
           break;
@@ -161,7 +161,7 @@ namespace NFlipFlopPattern
       {
           position_ = 0;
       }
-    
+
       if (Clock(0))
       {
         switch(mode_)
@@ -172,7 +172,7 @@ namespace NFlipFlopPattern
             if (position_ == 0) ClockOut(1);
             // Sends the flip-flip state on output 0
             GateOut(0, boolSteps_[position_]);
-            break;                 
+            break;
           }
           case Model::Modes::Drums:
           {
@@ -191,7 +191,7 @@ namespace NFlipFlopPattern
           default:
             break;
         }
-        position_ = (position_ +1) % kMaxSteps;     
+        position_ = (position_ +1) % kMaxSteps;
       }
     }
 
@@ -201,6 +201,60 @@ namespace NFlipFlopPattern
       gfxSkyline();
     }
 
+    uint32_t OnDataRequest() override {
+      using namespace OC;
+      // roll current pattern into save data
+      Pattern&p =  user_patterns[hemisphere ? 0 : 1];
+      switch(mode_)
+      {
+        case Model::Modes::Gate:
+          for (int i = 0; i < 16; i++)
+          {
+            p.notes[i] = boolSteps_[i] ? 36: 0;
+          }
+          break;
+        case Model::Modes::Drums:
+          for (int i = 0; i < 16; i++)
+          {
+            p.notes[i] = (intSteps_[i] == 0) ? 0 : intSteps_[i] + 35; // Kick - Sidestick
+          }
+          break;
+        default:
+          break;
+      }
+
+      // store mode
+      uint32_t data = 0;
+      Pack(data, PackLocation {0,8}, int(mode_));
+      return data;
+    }
+
+    void OnDataReceive(uint32_t data) override {
+      using namespace OC;
+
+      const auto mode = Model::Modes(Unpack(data, PackLocation {0,8}));
+      setValue<Model::Mode>(mode);
+
+      // Unroll pattern from data
+      Pattern&p =  user_patterns[hemisphere ? 0 : 1];
+      switch(mode_)
+      {
+        case Model::Modes::Gate:
+          for (int i = 0; i < 16; i++)
+          {
+            boolSteps_[i] = p.notes[i] != 0;
+          }
+          break;
+        case Model::Modes::Drums:
+          for (int i = 0; i < 16; i++)
+          {
+            intSteps_[i] = (p.notes[i] == 0) ? 0 : p.notes[i] - 35;
+          }
+          break;
+        default:
+          break;
+      }
+    }
   private:
     FlipFlopPatternWeaver<kMaxSteps> generator_;
     std::array<bool, kMaxSteps> boolSteps_;

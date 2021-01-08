@@ -48,6 +48,12 @@ public:
     getProperty<Property>().setCallback(cb);
   }
 
+  template <class Property, class Value>
+  void setValue(const Value& v)
+  {
+    getProperty<Property>().setValue(v);
+  }
+
   template <typename Property>
   void bind(auto& v)
   {
@@ -181,7 +187,7 @@ public:
    * the manager, OnDataRequest() packs it up (see HemisphereApplet::Pack()) and
    * returns it.
    */
-  uint32_t OnDataRequest() {
+  virtual uint32_t OnDataRequest() {
       uint32_t data = 0;
       // example: pack property_name at bit 0, with size of 8 bits
       // Pack(data, PackLocation {0,8}, property_name);
@@ -193,7 +199,7 @@ public:
    * and unpack it (see HemisphereApplet::Unpack()) into zero or more of the applet's
    * properties.
    */
-  void OnDataReceive(uint32_t data) {
+  virtual void OnDataReceive(uint32_t data) {
       // example: unpack value at bit 0 with size of 8 bits to property_name
       // property_name = Unpack(data, PackLocation {0,8});
   }
