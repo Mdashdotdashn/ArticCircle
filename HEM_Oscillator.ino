@@ -232,6 +232,11 @@ namespace NOscillator
         const int32_t pitch = In(0);
         const int32_t quantized = quantizer_.Process(pitch, root_ << 7, 0);
         lastNote_ = clamp(MIDIQuantizer::NoteNumber(quantized) -24 + octave_ * 12, 0 , 127);
+
+        if (flankUp(1))
+        {
+          osc_.reset(kSampleRate);
+        }
         const float frequency = midiNoteToFrequency(lastNote_) ;
         osc_.setFrequency(frequency);
         const auto osc = osc_.tick();
