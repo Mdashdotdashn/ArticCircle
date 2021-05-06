@@ -35,6 +35,7 @@ namespace NOscillator
       Sine,
       QuadraticSine,
       TanhSine,
+      Saturated,
       Square,
       BRect,
       SharkTooth,
@@ -67,7 +68,7 @@ namespace NOscillator
       Waveform()
       {
         setValue(Waveforms::Sine);
-        setEnumStrings({"Sine", "QSine", "Tanh", "Square", "BSquare", "Shark", "Random"});
+        setEnumStrings({"Sine", "QSine", "Tanh", "Satur", "Square", "BSquare", "Shark", "Random"});
       }
     };
 
@@ -161,48 +162,56 @@ namespace NOscillator
           switch(waveform)
           {
             case Model::Waveforms::Sine:
-              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/)
+              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/,const sample_t& /* shape */)
               {
                 return Sine(phase);
               });
               break;
             case Model::Waveforms::QuadraticSine:
-              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/)
+              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/,const sample_t& shape)
               {
                 return quadraticSine(phase);
               });
               break;
 
-              case Model::Waveforms::TanhSine:
-                osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/)
-                {
-                  return tanh(phase);
-                });
-                break;
+            case Model::Waveforms::Saturated:
+              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/,const sample_t& shape)
+              {
+                const auto boosted = clamp(triangle(phase) * (sample_t(0.25) + shape), sample_t(-0.25), sample_t(0.25));
+                return quadraticSine(boosted);
+              });
+              break;
+
+            case Model::Waveforms::TanhSine:
+              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/,const sample_t& /* shape */)
+              {
+                return tanh(phase);
+              });
+              break;
 
             case Model::Waveforms::Square:
-              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/)
+              osc_.setTicker([](const sample_t& phase, const sample_t& /*phaseInc*/,const sample_t& /* shape */)
               {
                 return phase < sample_t(0.5) ? sample_t(-1) : sample_t(1);
               });
               break;
 
             case Model::Waveforms::BRect:
-              osc_.setTicker([](const sample_t& phase, const sample_t& phaseInc)
+              osc_.setTicker([](const sample_t& phase, const sample_t& phaseInc,const sample_t& /* shape */)
               {
                 return (rectPolyBlep(phase, phaseInc) + sample_t(1)) * sample_t(0.5);
               });
               break;
 
             case Model::Waveforms::SharkTooth:
-              osc_.setTicker([this](const sample_t& phase, const sample_t& phaseInc)
+              osc_.setTicker([this](const sample_t& phase, const sample_t& phaseInc,const sample_t& shape)
               {
-                return sharkShape_.tick(phase, phaseInc, sample_t(0.7));
+                return sharkShape_.tick(phase, phaseInc, abs(shape));
               });
               break;
 
             case Model::Waveforms::Random:
-              osc_.setTicker([](const sample_t& /*phase*/, const sample_t& /*phaseInc*/)
+              osc_.setTicker([](const sample_t& /*phase*/, const sample_t& /*phaseInc*/,const sample_t& /* shape */)
               {
                 return rand<sample_t>();
               });
@@ -237,9 +246,12 @@ namespace NOscillator
         {
           osc_.reset(kSampleRate);
         }
+
+        const auto shape = sample_t::fromRatio(In(1), float(HEMISPHERE_MAX_CV));
+
         const float frequency = midiNoteToFrequency(lastNote_) ;
         osc_.setFrequency(frequency);
-        const auto osc = osc_.tick();
+        const auto osc = osc_.tick(shape);
         Out(0, float(osc * eg_.tick(Gate(0))) * HEMISPHERE_3V_CV);
         Out(1, float(osc) * HEMISPHERE_3V_CV);
       }

@@ -9,7 +9,7 @@ template <typename T>
 class Oscillator
 {
 public:
-  using Ticker = std::function<T(const T&, const T&)>;
+  using Ticker = std::function<T(const T&, const T&, const T&)>;
 
   void reset(const float samplerate)
   {
@@ -26,10 +26,10 @@ public:
     ticker_ = ticker;
   }
 
-  T tick()
+  T tick(const T& shape)
   {
     const auto phase = phasor_.tick();
-    return ticker_ ? ticker_(phase, phasor_.phaseInc()) : T(0);
+    return ticker_ ? ticker_(phase, phasor_.phaseInc(), shape) : T(0);
   }
 private:
   Phasor<T> phasor_;
