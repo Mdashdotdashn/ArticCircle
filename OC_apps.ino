@@ -38,6 +38,7 @@ OC::App available_apps[] = {
   DECLARE_APP('H','S', "Hemisphere", HEMISPHERE),
   DECLARE_APP('M','I', "Captain Midi", MIDI),
   DECLARE_APP('S','C', "Scale Editor", SCALEEDITOR),
+  DECLARE_APP('C','S', "CV Scaler", CVScaler),
   DECLARE_APP('W','A', "Waveform Editor", WaveformEditor),
   DECLARE_APP('B','R', "Backup / Restore", Backup),
   DECLARE_APP('S','E', "Setup / About", Settings),

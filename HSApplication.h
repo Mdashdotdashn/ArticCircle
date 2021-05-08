@@ -195,6 +195,21 @@ public:
         graphics.print(num);
     }
 
+    /* Convert CV value to voltage level and print  to two decimal places */
+    void gfxPrintVoltage(int cv) {
+        int v = (cv * 100) / (12 << 7);
+        bool neg = v < 0 ? 1 : 0;
+        if (v < 0) v = -v;
+        int wv = v / 100; // whole volts
+        int dv = v - (wv * 100); // decimal
+        gfxPrint(neg ? "-" : "+");
+        gfxPrint(wv);
+        gfxPrint(".");
+        if (dv < 10) gfxPrint("0");
+        gfxPrint(dv);
+        gfxPrint("V");
+    }
+
     void gfxPixel(int x, int y) {
         graphics.setPixel(x, y);
     }
