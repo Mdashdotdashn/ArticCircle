@@ -145,7 +145,6 @@ namespace NOscillator
         quantizer_.Init();
         lastNote_ = 0;
 
-        random::uniform_distribution(random::get_seed());
         eg_.init();
 
         setCallback<Model::Decay>([this](const auto& decay){
@@ -211,9 +210,9 @@ namespace NOscillator
               break;
 
             case Model::Waveforms::Random:
-              osc_.setTicker([](const sample_t& /*phase*/, const sample_t& /*phaseInc*/,const sample_t& /* shape */)
+              osc_.setTicker([this](const sample_t& /*phase*/, const sample_t& /*phaseInc*/,const sample_t& /* shape */)
               {
-                return rand<sample_t>();
+                return rand_.tick();
               });
               break;
 
@@ -280,6 +279,7 @@ namespace NOscillator
 
   private:
     Oscillator<sample_t> osc_;
+    Random<sample_t> rand_;
     SharkToothShape<sample_t> sharkShape_;
     SwitchableEG eg_;
     braids::Quantizer quantizer_;

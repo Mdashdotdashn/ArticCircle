@@ -47,7 +47,7 @@ namespace NNoiseRampLfo
       if (mPhasor.flanked())
       {
         // new target between zero and one
-        const auto target = rand<sample_t>() * sample_t(2) - sample_t(1);
+        const auto target = rand_.tick() * sample_t(2) - sample_t(1);
         const auto offset = target - mValue;
         mInc = sample_t(mLfoFrequency / kSampleRate) * offset;
       }
@@ -65,6 +65,7 @@ namespace NNoiseRampLfo
     float mLfoFrequency = .5f;
     sample_t mInc = sample_t(0.001);
     sample_t mValue = sample_t(0);
+    Random<sample_t> rand_;
   };
 
    Applet instance_[2];

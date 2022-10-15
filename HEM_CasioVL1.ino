@@ -150,7 +150,7 @@ namespace NCasioVL1
       const auto phaseInc = phasor_.phaseInc();
 
       // compute sample according to sound mode
-      const auto v = (step_ == noise) ? rand<sample_t>() : (rectPolyBlep(phase, phaseInc) + sample_t(1)) * sample_t(0.5);
+      const auto v = (step_ == noise) ? rand_.tick() : (rectPolyBlep(phase, phaseInc) + sample_t(1)) * sample_t(0.5);
       const auto value = clamp(v * eg_.tick(gate_), sample_t(-1), sample_t(1));
       Out(0, float(value) * HEMISPHERE_MAX_CV);
     }
@@ -168,7 +168,7 @@ namespace NCasioVL1
 
   private:
     //     return v * eg_.tick(gate);
-
+    Random<sample_t> rand_;
     Phasor<sample_t> phasor_;
     ADEnvelope<sample_t> eg_;
     int position_ = 0;

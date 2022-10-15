@@ -67,6 +67,23 @@ struct Property<int, void> : detail::PropertyBase<int>
 //------------------------------------------------------------------------------
 
 template <>
+struct Property<uint32_t, void> : detail::PropertyBase<uint32_t>
+{
+  void setRange(int min, int max)
+  {
+    min_ = min;
+    max_ = max;
+    value_ = clamp(value_ , min_, max_);
+    triggerCallback();
+  }
+
+  uint32_t min_ = 0;
+  uint32_t max_ = 1;
+};
+
+//------------------------------------------------------------------------------
+
+template <>
 struct Property<float, void>: detail::PropertyBase<float>
 {
   void setRange(float min, float max,float increment = 0.f)

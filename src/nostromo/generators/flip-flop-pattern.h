@@ -61,11 +61,6 @@ public:
   {
   }
 
-  float random()
-  {
-    return rand<float>();
-  }
-
   Storage distributeSteps(size_t sliceCount, size_t totalCount, size_t minimum)
   {
     assert(totalCount <= kMaxCapacity);
@@ -77,7 +72,7 @@ public:
     {
       // Since we need at least one step per slice, we can't use them all
       const auto available = remaining - (sliceCount - 1 - i);
-      const auto allocated = std::max(size_t(std::floor(available *  random())), minimum);
+      const auto allocated = std::max(size_t(std::floor(available *  rand_.tick())), minimum);
       remaining-= allocated;
       result.push_back(allocated);
     }
@@ -113,4 +108,6 @@ public:
     }
     return result;
   }
+private:
+  Random<float> rand_;
 };

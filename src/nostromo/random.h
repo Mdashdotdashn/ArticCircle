@@ -6,48 +6,52 @@
 
 // ported from https://github.com/MKlimenko/random/
 
-struct random {
-	///<summary>Get runtime seed from the <c>std::chrono::high_resolution_clock</c><summary>
-	///<returns>Seed in the range of [0, std::uint32_t_max]</returns>
-	static auto get_seed() {
-		return static_cast<std::uint32_t>(micros());
+template <typename T>
+class Random {
+
+public:
+	Random()
+	{
+		seed();
 	}
 
-	///<summary>Real uniform distribution</summary>
-	///<returns>Uniform distributed value in the range of [0, 1]</returns>
-	static uint32_t uniform_distribution(std::uint32_t init = 0) {
-		static std::uint32_t val = 0x12345;
-		if (init) {
-			val = init;
-			return 0;
+	uint32_t seed(std::uint32_t init = 0) {
+		if (init)
+		{
+			current_ = init;
 		}
-		val = val * 214013 + 2531011;
-    return val;
+		else
+		{
+			current_ = static_cast<std::uint32_t>(micros());
+		}
+		return current_;
 	}
+
+	T tick();
+
+private:
+	uint32_t tickInternal()
+	{
+		current_ = current_ * 214013 + 2531011;
+		return current_;
+	}
+	std::uint32_t current_ = 0x12345;
 };
 
-// Random
-
-template <typename T>
-T rand();
-
 template <>
-float rand<float>()
+uint32_t Random<uint32_t>::tick()
 {
-  const auto val = random::uniform_distribution();
-  return ((val & 0x3FFFFFFF) >> 15) / 32767.f;
+	return tickInternal();
 }
 
 template <>
-double rand<double>()
+float Random<float>::tick()
 {
-  const auto val = random::uniform_distribution();
-  return ((val & 0x3FFFFFFF) >> 15) / 32767.0;
+	return ((tickInternal() & 0x3FFFFFFF) >> 15) / 32767.f;
 }
 
 template <>
-sample_t rand<sample_t>()
+sample_t Random<sample_t>::tick()
 {
-  const auto val = random::uniform_distribution();
-  return sample_t::fromRatio((val & 0x3FFFFFFF) >> 15, 32767);
+	return sample_t::fromRatio((tickInternal() & 0x3FFFFFFF) >> 15, 32767);
 }

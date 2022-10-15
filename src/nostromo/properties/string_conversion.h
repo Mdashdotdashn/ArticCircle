@@ -5,6 +5,8 @@
 #include "estd.h"
 #include "property.h"
 
+#include <stdint.h>
+
 class IntStringConverter
 {
 public:
@@ -13,6 +15,16 @@ public:
 private:
   int min_;
   int max_;
+};
+
+class UInt32StringConverter
+{
+public:
+  UInt32StringConverter(uint32_t min, uint32_t max);
+  String toString(uint32_t value);
+private:
+  uint32_t min_;
+  uint32_t max_;
 };
 
 class FloatStringConverter
@@ -98,6 +110,25 @@ namespace conversion
     String propertyToString(const Property<int>& p) final
     {
       return IntStringConverter::toString(p.value_);
+    }
+
+  };
+
+  //------------------------------------------------------------------------------
+
+  template <>
+  class StringConverter<uint32_t, void> : public UInt32StringConverter, public detail::StringConverterBase<uint32_t>
+  {
+  public:
+    StringConverter(Property<uint32_t>& p)
+    : UInt32StringConverter(p.min_, p.max_)
+    , detail::StringConverterBase<uint32_t>(p)
+    {
+    }
+
+    String propertyToString(const Property<uint32_t>& p) final
+    {
+      return UInt32StringConverter::toString(p.value_);
     }
 
   };
